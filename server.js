@@ -58,9 +58,21 @@ const server = http.createServer((req, res) => {
     req.on('end', () => {
       try {
         const data = JSON.parse(body);
-        if (data?.payload?.codigo) {
-          salas.set(data.payload.codigo, data.payload);
+        const codigo = data?.codigo || data?.payload?.codigo;
+        const sala = data?.room || data?.payload?.room;
+        const estudiantes = data?.students || data?.payload?.students;
+
+        if (codigo) {
+          const existing = salas.get(codigo) || { codigo, estado: 'espera', precios: [], estudiantes: [] };
+          if (sala) {
+            Object.assign(existing, sala);
+          }
+          if (Array.isArray(estudiantes)) {
+            existing.estudiantes = estudiantes;
+          }
+          salas.set(codigo, existing);
         }
+
         sendJson(res, 200, { ok: true });
       } catch (error) {
         sendJson(res, 400, { ok: false, error: 'datos inválidos' });
