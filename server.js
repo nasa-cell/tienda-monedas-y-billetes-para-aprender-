@@ -79,6 +79,7 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.method === 'POST' && (req.url === '/sync' || req.url === '/api/sync')) {
+    req.setEncoding('utf8');
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', () => {
@@ -101,7 +102,7 @@ const server = http.createServer((req, res) => {
 
         sendJson(res, 200, { ok: true });
       } catch (error) {
-        sendJson(res, 400, { ok: false, error: 'datos inválidos' });
+        sendJson(res, 400, { ok: false, error: 'datos inválidos', mensaje: error.message, body });
       }
     });
     return;
