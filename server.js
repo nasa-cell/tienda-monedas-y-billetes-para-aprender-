@@ -85,7 +85,8 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  const urlPath = req.url === '/' ? '/index.html' : req.url;
+  const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
+  const urlPath = parsedUrl.pathname === '/' ? '/index.html' : parsedUrl.pathname;
   const filePath = path.join(root, decodeURIComponent(urlPath));
   serveFile(res, filePath);
 });
