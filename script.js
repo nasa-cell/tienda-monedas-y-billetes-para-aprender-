@@ -644,7 +644,7 @@ function eliminarTodosEstudiantesSala(codigo) {
     keysAEliminar.forEach(({ storage, clave }) => storage.removeItem(clave));
 }
 
-function reiniciarSalaDocente() {
+async function reiniciarSalaDocente() {
     if (!codigoSalaActual) {
         mostrarNotificacion('No hay sala activa para reiniciar.', 'warning');
         return;
@@ -655,6 +655,10 @@ function reiniciarSalaDocente() {
     }
 
     eliminarTodosEstudiantesSala(codigoSalaActual);
+    const estudiantesRestantes = obtenerEstudiantesDeSala(codigoSalaActual);
+    if (estudiantesRestantes.length > 0) {
+        estudiantesRestantes.forEach(est => eliminarDatoPersistente(`estudiante_${codigoSalaActual}_${est.nombre}`));
+    }
 
     const salaRaw = leerDatoPersistente(`sala_${codigoSalaActual}`);
     const sala = salaRaw ? JSON.parse(salaRaw) : { codigo: codigoSalaActual, estado: 'espera', precios: productosConPrecios, estudiantes: [] };
@@ -668,7 +672,8 @@ function reiniciarSalaDocente() {
     mostrarNotificacion('Aula reiniciada. Ya puedes recibir nuevos estudiantes.', 'success');
 
     difundirCambioPersistencia('tienda-sync', { codigo: codigoSalaActual });
-    void sincronizarEstadoConServidor();
+    await sincronizarEstadoConServidor();
+    await refrescarSalaServidor();
     mostrarPantalla('pantalla-espera-docente');
 }
 
