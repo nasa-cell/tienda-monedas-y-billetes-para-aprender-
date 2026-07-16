@@ -52,7 +52,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (req.method === 'POST' && req.url === '/sync') {
+  if (req.method === 'POST' && (req.url === '/sync' || req.url === '/api/sync')) {
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', () => {
@@ -69,13 +69,13 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (req.method === 'GET' && req.url === '/health') {
+  if (req.method === 'GET' && (req.url === '/health' || req.url === '/api/health')) {
     sendJson(res, 200, { ok: true, message: 'servidor listo' });
     return;
   }
 
-  if (req.method === 'GET' && req.url.startsWith('/state/')) {
-    const codigo = req.url.split('/state/')[1];
+  if (req.method === 'GET' && (req.url.startsWith('/state/') || req.url.startsWith('/api/state/'))) {
+    const codigo = req.url.split('/state/')[1] || req.url.split('/api/state/')[1];
     const sala = salas.get(codigo);
     if (sala) {
       sendJson(res, 200, { ok: true, sala });

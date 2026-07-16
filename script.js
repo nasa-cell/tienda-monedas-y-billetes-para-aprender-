@@ -106,7 +106,7 @@ function difundirCambioPersistencia(tipo, payload) {
 
     try {
         const clave = `__sync_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-        const dato = JSON.stringify({ type, payload });
+        const dato = JSON.stringify({ type: tipo, payload });
         localStorage.setItem(clave, dato);
         localStorage.removeItem(clave);
     } catch (error) {}
