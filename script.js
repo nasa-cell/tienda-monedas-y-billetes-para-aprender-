@@ -336,6 +336,40 @@ function obtenerEstudiantesDeSala(codigo) {
     return estudiantes;
 }
 
+function renderizarEstudiantesEnDocente(estudiantes) {
+    const contador = document.getElementById('lobby-contador-docente');
+    const lista = document.getElementById('lobby-lista-docente');
+    if (!contador || !lista) return;
+
+    contador.innerText = `${estudiantes.length} estudiante${estudiantes.length === 1 ? '' : 's'}`;
+    lista.innerHTML = estudiantes.map(e => `<li>🎈 ${e.nombre}</li>`).join('');
+}
+
+function actualizarContadorEstudiante(estudiantes) {
+    const contador = document.getElementById('lobby-contador-estudiante');
+    if (!contador) return;
+    contador.innerText = estudiantes.length;
+}
+
+function actualizarVistaDesdeSala(sala) {
+    const estudiantes = Array.isArray(sala?.estudiantes) ? sala.estudiantes : obtenerEstudiantesDeSala(codigoSalaActual);
+
+    if (miRol === 'docente') {
+        if (document.getElementById('pantalla-espera-docente').classList.contains('active')) {
+            renderizarEstudiantesEnDocente(estudiantes);
+        }
+    }
+
+    if (miRol === 'estudiante') {
+        if (document.getElementById('pantalla-espera-estudiante').classList.contains('active')) {
+            actualizarContadorEstudiante(estudiantes);
+            if (sala?.estado === 'jugando') {
+                comenzarDesafiosEstudiante();
+            }
+        }
+    }
+}
+
 function eliminarTodosEstudiantesSala(codigo) {
     const keysAEliminar = [];
     const fuentes = [localStorage, sessionStorage];
@@ -572,24 +606,21 @@ function activarSincronizacionReactiva() {
             : obtenerEstudiantesDeSala(codigoSalaActual);
 
         // --- VISTA DOCENTE ---
-        if (miRol === 'docente') {
-            if (document.getElementById('pantalla-espera-docente').classList.contains('active')) {
-                // Actualizar lobby de espera
-                document.getElementById('lobby-contador-docente').innerText = `${estudiantes.length} estudiantes`;
-                const listaHTML = estudiantes.map(e => `<li>🎈 ${e.nombre}</li>`).join('');
-                document.getElementById('lobby-lista-docente').innerHTML = listaHTML;
-            }
+        actualizarVistaDesdeSala(sala);
 
+        if (miRol === 'docente') {
             if (document.getElementById('pantalla-control-docente').classList.contains('active')) {
                 // Actualizar Panel de monitoreo en vivo
-                actualizarPanelSeguimientoDocente(estudiantes);
+                const estudiantesControl = Array.isArray(sala?.estudiantes) ? sala.estudiantes : estudiantes;
+                actualizarPanelSeguimientoDocente(estudiantesControl);
             }
         }
 
         // --- VISTA ESTUDIANTE ---
         if (miRol === 'estudiante') {
             if (document.getElementById('pantalla-espera-estudiante').classList.contains('active')) {
-                document.getElementById('lobby-contador-estudiante').innerText = estudiantes.length;
+                const estudiantesActuales = Array.isArray(sala?.estudiantes) ? sala.estudiantes : estudiantes;
+                actualizarContadorEstudiante(estudiantesActuales);
 
                 // Si el docente da inicio a la partida
                 if (sala.estado === 'jugando') {
