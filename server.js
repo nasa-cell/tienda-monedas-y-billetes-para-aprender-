@@ -20,12 +20,25 @@ function sendJson(res, statusCode, payload) {
 
 function serveFile(res, filePath) {
   setCors(res);
+  const contentType = {
+    '.html': 'text/html; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.js': 'application/javascript; charset=utf-8',
+    '.json': 'application/json; charset=utf-8',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.svg': 'image/svg+xml',
+    '.ico': 'image/x-icon'
+  }[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
+
   fs.readFile(filePath, (err, data) => {
     if (err) {
-      res.writeHead(404); res.end('Not found');
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('Not found');
       return;
     }
-    res.writeHead(200);
+    res.writeHead(200, { 'Content-Type': contentType });
     res.end(data);
   });
 }
