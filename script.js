@@ -31,8 +31,13 @@ let rondaActual = 0;
 let totalRondasObjetivo = 30;
 
 function obtenerBaseServidor() {
-    const base = (servidorWiFi || '').trim();
-    if (base) return base;
+    const baseRaw = (servidorWiFi || '').trim();
+    if (baseRaw) {
+        if (baseRaw === 'modo-local') {
+            return null;
+        }
+        return baseRaw;
+    }
     if (typeof window !== 'undefined' && window.location && window.location.origin) {
         const origin = window.location.origin;
         if (origin && origin !== 'null' && origin !== 'file://') {
@@ -121,10 +126,17 @@ function guardarServidor() {
     if (!input) return;
 
     const modo = modoSeleccionado ? modoSeleccionado.value : 'local';
-    const valor = (input.value || '').trim();
+    let valor = (input.value || '').trim();
 
     if (modo === 'server') {
+        if (!valor && typeof window !== 'undefined' && window.location && window.location.origin) {
+            const origin = window.location.origin;
+            if (origin && origin !== 'null' && origin !== 'file://') {
+                valor = origin;
+            }
+        }
         servidorWiFi = valor || 'http://127.0.0.1:8000';
+        input.value = servidorWiFi;
     } else {
         servidorWiFi = 'modo-local';
     }
@@ -240,28 +252,44 @@ async function intentarConexionAutomatica() {
     const radioServidor = document.querySelector('input[name="sync-mode"][value="server"]');
     if (!input || !status) return false;
 
-    if (radioLocal) radioLocal.checked = true;
-    if (radioServidor) radioServidor.checked = false;
+    const hostOrigin = (typeof window !== 'undefined' && window.location && window.location.origin)
+        ? window.location.origin
+        : '';
+    const originValida = hostOrigin && hostOrigin !== 'null' && hostOrigin !== 'file://';
 
-    const base = await detectarDireccionRed();
-    const propuesta = base || 'http://127.0.0.1:8000';
+    let propuesta = originValida ? hostOrigin : 'http://127.0.0.1:8000';
+    let modo = originValida ? 'server' : 'local';
+
+    if (!originValida) {
+        const base = await detectarDireccionRed();
+        if (base) {
+            propuesta = base;
+            modo = 'server';
+        }
+    }
+
     input.value = propuesta;
 
     if (help) {
-        help.textContent = `URL sugerida para otra PC en la misma red Wi‑Fi: ${propuesta}`;
+        help.textContent = modo === 'server'
+            ? `URL sugerida para otra PC en la misma red Wi‑Fi: ${propuesta}`
+            : 'La app intentará detectar la IP de tu red para que la copies en otra PC.';
     }
 
     if (troubleshoot) {
         troubleshoot.style.display = 'block';
     }
 
-    if (base && base !== 'http://127.0.0.1:8000') {
+    if (modo === 'server') {
         if (radioServidor) radioServidor.checked = true;
+        if (radioLocal) radioLocal.checked = false;
         status.textContent = `URL lista: ${propuesta}. Si no responde, la app seguirá funcionando en modo local.`;
         servidorWiFi = propuesta;
     } else {
+        if (radioLocal) radioLocal.checked = true;
+        if (radioServidor) radioServidor.checked = false;
         status.textContent = 'Modo local activo: la sala se comparte dentro del navegador.';
-        help.textContent = 'No hay servidor abierto todavía. La app funcionará en modo local.';
+        help.textContent = 'La app funcionará en modo local o con un servidor remoto si cambias la configuración.';
         servidorWiFi = 'modo-local';
     }
     return true;
