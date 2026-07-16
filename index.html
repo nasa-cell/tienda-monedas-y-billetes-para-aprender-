@@ -193,8 +193,9 @@
                             <button class="bill bill-large" onclick="agregarDineroPago(200)">S/200</button>
                         </div>
                         <div class="payment-status">
-                            <div>Has colocado: <strong id="monto-pagado" class="total-highlight">S/ 0</strong></div>
+                            <div>Has colocado: <strong id="monto-pagado" class="total-highlight">S/ 0.00</strong></div>
                             <button class="btn btn-green btn-block" onclick="procesarPagoReto()">💳 Confirmar Pago / Enviar</button>
+                            <button class="btn btn-yellow btn-block" onclick="resetearPago()">🔄 Corregir Pago</button>
                         </div>
                     </div>
                 </div>
@@ -238,6 +239,7 @@
                         <tr>
                             <th>Estudiante</th>
                             <th>Grado/Sec</th>
+                            <th>Orden</th>
                             <th>Puntaje</th>
                             <th>Nivel</th>
                             <th>Progreso</th>
@@ -253,8 +255,20 @@
         </section>
 
         <section id="pantalla-resultados" class="screen">
-            <h2 class="text-center">🏁 ¡Fin de la Aventura de Compra!</h2>
-            
+            <canvas id="result-canvas-background"></canvas>
+            <div class="result-overlay">
+                <h2 class="text-center">🏁 ¡Fin de la Aventura de Compra!</h2>
+                
+                <div class="finish-summary">
+                    <div class="summary-card">
+                        <p class="summary-tag">Ya terminaste</p>
+                        <div class="summary-row"><span>Aciertos:</span> <strong id="final-aciertos">0</strong></div>
+                        <div class="summary-row"><span>Errores:</span> <strong id="final-errores">0</strong></div>
+                        <div class="summary-row"><span>Puntos totales:</span> <strong id="final-puntos">0 pts</strong></div>
+                    </div>
+                </div>
+            </div>
+
             <div class="podium">
                 <div class="podium-step step-2">
                     <div class="medal-emoji">🥈</div>

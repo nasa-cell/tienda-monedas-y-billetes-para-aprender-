@@ -23,12 +23,19 @@ let temporizadorTotal = null;
 let montoColocadoPago = 0; // Dinero acumulado por monedas/billetes ingresados
 let retoActivo = null; // Información de la pregunta actual
 let carrito = []; // Items seleccionados
+let totalAciertos = 0;
 let channelSync = null;
 let servidorWiFi = '';
 let ultimoEstadoSala = null;
 let autoSyncActivo = false;
 let rondaActual = 0;
-let totalRondasObjetivo = 30;
+let totalRondasObjetivo = 25;
+let ordenLlegadaActual = 1;
+
+let resultBgCanvas = null;
+let resultBgCtx = null;
+let resultBgItems = [];
+let resultBgAnimId = null;
 
 function obtenerBaseServidor() {
     const baseRaw = (servidorWiFi || '').trim();
@@ -64,7 +71,21 @@ const productosBase = [
     { id: 13, emoji: "🧁", nombre: "Cupcake" },
     { id: 14, emoji: "☕", nombre: "Café" },
     { id: 15, emoji: "🍇", nombre: "Uvas" },
-    { id: 16, emoji: "🥪", nombre: "Sandwich" }
+    { id: 16, emoji: "🥪", nombre: "Sandwich" },
+    { id: 17, emoji: "🍊", nombre: "Naranja" },
+    { id: 18, emoji: "🥦", nombre: "Brócoli" },
+    { id: 19, emoji: "🍓", nombre: "Fresas" },
+    { id: 20, emoji: "🥔", nombre: "Papa" },
+    { id: 21, emoji: "🌽", nombre: "Maíz" },
+    { id: 22, emoji: "🥥", nombre: "Coco" },
+    { id: 23, emoji: "🍯", nombre: "Miel" },
+    { id: 24, emoji: "🍗", nombre: "Pollo" },
+    { id: 25, emoji: "🥝", nombre: "Kiwi" },
+    { id: 26, emoji: "🍋", nombre: "Limón" },
+    { id: 27, emoji: "🥨", nombre: "Pretzel" },
+    { id: 28, emoji: "🍤", nombre: "Camarón" },
+    { id: 29, emoji: "🥖", nombre: "Baguette" },
+    { id: 30, emoji: "🧂", nombre: "Sal" }
 ];
 let productosConPrecios = [];
 
@@ -160,6 +181,123 @@ function mostrarPantalla(screenId) {
     if (['pantalla-espera-docente', 'pantalla-espera-estudiante', 'pantalla-control-docente'].includes(screenId) && codigoSalaActual) {
         refrescarSalaServidor();
     }
+
+    if (screenId === 'pantalla-resultados') {
+        iniciarFondoResultados();
+    } else {
+        detenerFondoResultados();
+    }
+}
+
+function inicializarFondoResultados() {
+    resultBgCanvas = document.getElementById('result-canvas-background');
+    if (!resultBgCanvas) return;
+    resultBgCtx = resultBgCanvas.getContext('2d');
+    resultBgItems = [];
+    window.addEventListener('resize', ajustarTamanoFondoResultados);
+    ajustarTamanoFondoResultados();
+}
+
+function ajustarTamanoFondoResultados() {
+    if (!resultBgCanvas) return;
+    const rect = resultBgCanvas.getBoundingClientRect();
+    resultBgCanvas.width = Math.max(1, Math.floor(rect.width * window.devicePixelRatio));
+    resultBgCanvas.height = Math.max(1, Math.floor(rect.height * window.devicePixelRatio));
+    if (resultBgCtx) {
+        resultBgCtx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+    }
+}
+
+function iniciarFondoResultados() {
+    if (!resultBgCanvas || !resultBgCtx) {
+        inicializarFondoResultados();
+        if (!resultBgCanvas || !resultBgCtx) return;
+    }
+
+    resultBgItems = Array.from({ length: 28 }, () => ({
+        x: Math.random() * resultBgCanvas.width / window.devicePixelRatio,
+        y: Math.random() * resultBgCanvas.height / window.devicePixelRatio,
+        radius: Math.random() * 12 + 5,
+        vitesse: Math.random() * 0.7 + 0.3,
+        alpha: Math.random() * 0.35 + 0.25,
+        hue: Math.floor(Math.random() * 35) + 40,
+        drift: Math.random() * 1.2 - 0.6,
+        shape: Math.random() > 0.4 ? 'circle' : 'star'
+    }));
+
+    const animate = () => {
+        if (!resultBgCtx || !resultBgCanvas) return;
+
+        const width = resultBgCanvas.width / window.devicePixelRatio;
+        const height = resultBgCanvas.height / window.devicePixelRatio;
+
+        resultBgCtx.clearRect(0, 0, width, height);
+        resultBgCtx.fillStyle = 'rgba(255,255,255,0.12)';
+        resultBgCtx.fillRect(0, 0, width, height);
+
+        resultBgItems.forEach(item => {
+            item.y -= item.vitesse;
+            item.x += item.drift;
+            if (item.y + item.radius < -20) {
+                item.y = height + 20;
+                item.x = Math.random() * width;
+            }
+            if (item.x < -40) item.x = width + 40;
+            if (item.x > width + 40) item.x = -40;
+
+            const gradient = resultBgCtx.createRadialGradient(
+                item.x,
+                item.y,
+                0,
+                item.x,
+                item.y,
+                item.radius * 1.8
+            );
+            gradient.addColorStop(0, `hsla(${item.hue}, 90%, 70%, ${item.alpha})`);
+            gradient.addColorStop(0.5, `hsla(${item.hue}, 90%, 70%, ${item.alpha * 0.45})`);
+            gradient.addColorStop(1, 'hsla(210, 100%, 95%, 0)');
+
+            resultBgCtx.fillStyle = gradient;
+            resultBgCtx.beginPath();
+            resultBgCtx.arc(item.x, item.y, item.radius * 1.6, 0, Math.PI * 2);
+            resultBgCtx.fill();
+
+            if (item.shape === 'star') {
+                resultBgCtx.save();
+                resultBgCtx.translate(item.x, item.y);
+                resultBgCtx.rotate((Date.now() / 1400) * (item.drift > 0 ? 1 : -1));
+                resultBgCtx.strokeStyle = `hsla(${item.hue}, 95%, 85%, ${item.alpha * 0.8})`;
+                resultBgCtx.lineWidth = 2;
+                resultBgCtx.beginPath();
+                for (let i = 0; i < 5; i++) {
+                    const theta = (Math.PI * 2 * i) / 5;
+                    const outer = item.radius * 0.9;
+                    const inner = item.radius * 0.4;
+                    resultBgCtx.lineTo(Math.cos(theta) * outer, Math.sin(theta) * outer);
+                    resultBgCtx.lineTo(Math.cos(theta + Math.PI / 5) * inner, Math.sin(theta + Math.PI / 5) * inner);
+                }
+                resultBgCtx.closePath();
+                resultBgCtx.stroke();
+                resultBgCtx.restore();
+            }
+        });
+
+        resultBgAnimId = requestAnimationFrame(animate);
+    };
+
+    if (!resultBgAnimId) {
+        resultBgAnimId = requestAnimationFrame(animate);
+    }
+}
+
+function detenerFondoResultados() {
+    if (resultBgAnimId) {
+        cancelAnimationFrame(resultBgAnimId);
+        resultBgAnimId = null;
+    }
+    if (resultBgCtx && resultBgCanvas) {
+        resultBgCtx.clearRect(0, 0, resultBgCanvas.width, resultBgCanvas.height);
+    }
 }
 
 async function refrescarSalaServidor() {
@@ -188,6 +326,8 @@ window.addEventListener('DOMContentLoaded', () => {
     const btnVolver = document.getElementById('btn-volver-inicio');
     if (btnVolver) btnVolver.addEventListener('click', irAlInicio);
 
+    inicializarFondoResultados();
+
     const btnDocenteInicio = document.getElementById('btn-docente-inicio');
     if (btnDocenteInicio) btnDocenteInicio.addEventListener('click', irARegistroDocente);
 
@@ -201,7 +341,94 @@ window.addEventListener('DOMContentLoaded', () => {
     if (btnIngresarEstudiante) btnIngresarEstudiante.addEventListener('click', unirseASalaEstudiante);
 
     inicializarPersistenciaReactiva();
+    inicializarMusicaFondo();
 });
+
+function iniciarMusicaPorInteraccion() {
+    if (musicaFondoIniciada) return;
+    musicaFondoIniciada = true;
+    reproducirPistaActual();
+}
+
+// --- GESTIÓN DE MÚSICA DE FONDO ---
+const MUSIC_STATE_KEY = 'tienda-musica-fondo';
+const MUSIC_FILES = [
+    { src: 'musica fondo1.mp3', label: 'Fondo 1' },
+    { src: 'musica fondo2.mp3', label: 'Fondo 2' }
+];
+let musicaFondoPistas = [];
+let pistaMusicalActual = 0;
+let musicaFondoIniciada = false;
+
+function cargarEstadoMusica() {
+    try {
+        const raw = localStorage.getItem(MUSIC_STATE_KEY);
+        if (!raw) return { trackIndex: 0, currentTime: 0 };
+        return JSON.parse(raw);
+    } catch (e) {
+        return { trackIndex: 0, currentTime: 0 };
+    }
+}
+
+
+function guardarEstadoMusica(trackIndex, currentTime) {
+    try {
+        localStorage.setItem(MUSIC_STATE_KEY, JSON.stringify({ trackIndex, currentTime }));
+    } catch (e) {
+        // no bloquear si el almacenamiento falla
+    }
+}
+
+function inicializarMusicaFondo() {
+    const estado = cargarEstadoMusica();
+    pistaMusicalActual = Number(estado.trackIndex) || 0;
+
+    musicaFondoPistas = MUSIC_FILES.map((archivo, index) => {
+        const audio = new Audio(archivo.src);
+        audio.loop = false;
+        audio.volume = 0.22;
+        audio.preload = 'auto';
+        audio.addEventListener('timeupdate', () => {
+            if (index === pistaMusicalActual) {
+                guardarEstadoMusica(pistaMusicalActual, audio.currentTime);
+            }
+        });
+        audio.addEventListener('loadedmetadata', () => {
+            if (index === pistaMusicalActual) {
+                const estadoInterno = cargarEstadoMusica();
+                if (estadoInterno.currentTime && estadoInterno.currentTime < audio.duration) {
+                    audio.currentTime = estadoInterno.currentTime;
+                }
+            }
+        });
+        audio.addEventListener('ended', () => {
+            if (index === pistaMusicalActual) {
+                pistaMusicalActual = (pistaMusicalActual + 1) % musicaFondoPistas.length;
+                guardarEstadoMusica(pistaMusicalActual, 0);
+                reproducirPistaActual();
+            }
+        });
+        return audio;
+    });
+
+    document.addEventListener('click', iniciarMusicaPorInteraccion, { once: true });
+    document.addEventListener('keydown', iniciarMusicaPorInteraccion, { once: true });
+    document.addEventListener('touchstart', iniciarMusicaPorInteraccion, { once: true });
+}
+
+function reproducirPistaActual() {
+    if (!musicaFondoPistas.length) return;
+    musicaFondoPistas.forEach((audio, index) => {
+        if (index !== pistaMusicalActual && !audio.paused) {
+            audio.pause();
+        }
+    });
+    const pista = musicaFondoPistas[pistaMusicalActual];
+    if (!pista) return;
+    pista.play().catch(() => {
+        // Si no se puede reproducir inmediatamente, se intentará tras la siguiente interacción
+    });
+}
 
 // --- GENERADOR DE AUDIO CON SINTETIZADOR DE NAVEGADOR ---
 function sonarEfecto(tipo) {
@@ -370,6 +597,14 @@ function actualizarContadorEstudiante(estudiantes) {
     const contador = document.getElementById('lobby-contador-estudiante');
     if (!contador) return;
     contador.innerText = estudiantes.length;
+}
+
+function calcularSiguienteOrdenLlegada() {
+    const estudiantes = obtenerEstudiantesDeSala(codigoSalaActual);
+    const ordenes = estudiantes
+        .map(est => Number(est.ordenLlegada) || 0)
+        .filter(num => num > 0);
+    return ordenes.length === 0 ? 1 : Math.max(...ordenes) + 1;
 }
 
 function actualizarVistaDesdeSala(sala) {
@@ -702,6 +937,7 @@ function actualizarPanelSeguimientoDocente(estudiantes) {
         tr.innerHTML = `
             <td><strong>${est.nombre}</strong></td>
             <td>${est.grado} "${est.seccion}"</td>
+            <td>${est.ordenLlegada ? `${est.ordenLlegada}°` : '—'}</td>
             <td><span class="total-highlight">${est.score} pts</span></td>
             <td>Nivel ${est.nivel}</td>
             <td class="progress-cell">
@@ -712,7 +948,7 @@ function actualizarPanelSeguimientoDocente(estudiantes) {
             </td>
             <td>${est.tiempo}s</td>
             <td style="color:var(--red-kid);">${est.errores}</td>
-            <td><span class="counter-badge" style="background-color: var(--green-kid);">Jugando</span></td>
+            <td><span class="counter-badge" style="background-color: var(--green-kid);">${est.ordenLlegada ? 'Terminado' : 'Jugando'}</span></td>
         `;
         tbody.appendChild(tr);
     });
@@ -738,6 +974,7 @@ function comenzarDesafiosEstudiante() {
     puntajeActual = 0;
     nivelActual = 1;
     totalErrores = 0;
+    totalAciertos = 0;
     tiempoTotalJugado = 0;
 
     // Cronómetro general de la partida activa
@@ -805,10 +1042,10 @@ function actualizarPreciosPorRonda() {
     const semilla = obtenerSemillaDeJuego();
 
     productosConPrecios = productosBase.map((producto, index) => {
-        const variacion = ((rondaActual + index) % 5) * 0.50;
-        const baseAleatoria = ((semilla + index * 13) % 9) + 1;
-        const precioBase = 1 + baseAleatoria + (index % 3) * 0.5;
-        const precioFinal = parseFloat((precioBase + variacion + (semilla % 10) * 0.08).toFixed(2));
+        const baseAleatoria = ((semilla + index * 17) % 8) + 1;
+        const ajusteRonda = 1 + (rondaActual / totalRondasObjetivo) * 0.45;
+        const precioRaw = baseAleatoria + (index % 4) * 0.5 + (rondaActual * 0.25);
+        const precioFinal = parseFloat((Math.round(precioRaw * ajusteRonda * 2) / 2).toFixed(2));
         return {
             ...producto,
             precio: precioFinal
@@ -822,15 +1059,42 @@ function finalizarJuegoEstudiante() {
     clearInterval(temporizadorReto);
     clearInterval(temporizadorTotal);
     sonarEfecto('correcto');
-    mostrarNotificacion('¡Completaste los 30 problemas de compra! Excelente trabajo.', 'success');
+    mostrarNotificacion('¡Completaste los 25 problemas de compra! Excelente trabajo.', 'success');
+
+    const ordenLlegada = calcularSiguienteOrdenLlegada();
+    actualizarEstudianteEnLobby({
+        nombre: nombreEstudiante,
+        grado: gradoEstudiante,
+        seccion: seccionEstudiante,
+        score: puntajeActual,
+        nivel: nivelActual,
+        ronda: rondaActual,
+        errores: totalErrores,
+        tiempo: tiempoTotalJugado,
+        activo: false,
+        ordenLlegada
+    });
+
     procesarYMostrarResultados();
 }
 
 function crearNuevoReto() {
     vaciarCarrito();
-    tiempoRestanteReto = 60;
-    actualizarBarraTiempo();
 
+    const siguienteRonda = Math.min(rondaActual + 1, totalRondasObjetivo);
+    rondaActual = siguienteRonda;
+    actualizarPreciosPorRonda();
+
+    retoActivo = generarRetoMatematico(nivelActual, rondaActual);
+    tiempoRestanteReto = retoActivo.tiempo || 55;
+    document.getElementById('challenge-desc').innerText = retoActivo.descripcion;
+    document.getElementById('hud-puntos').innerText = puntajeActual;
+    document.getElementById('hud-nivel').innerText = nivelActual;
+    document.getElementById('hud-ronda').innerText = `${rondaActual}/${totalRondasObjetivo}`;
+    document.getElementById('monto-pagado').innerText = 'S/ 0.00';
+    montoColocadoPago = 0;
+
+    actualizarBarraTiempo();
     if (temporizadorReto) clearInterval(temporizadorReto);
     temporizadorReto = setInterval(() => {
         tiempoRestanteReto--;
@@ -845,16 +1109,6 @@ function crearNuevoReto() {
             crearNuevoReto();
         }
     }, 1000);
-
-    const siguienteRonda = Math.min(rondaActual + 1, totalRondasObjetivo);
-    rondaActual = siguienteRonda;
-    actualizarPreciosPorRonda();
-
-    retoActivo = generarRetoMatematico(nivelActual, rondaActual);
-    document.getElementById('challenge-desc').innerText = retoActivo.descripcion;
-    document.getElementById('hud-puntos').innerText = puntajeActual;
-    document.getElementById('hud-nivel').innerText = nivelActual;
-    document.getElementById('hud-ronda').innerText = `${rondaActual}/${totalRondasObjetivo}`;
 
     actualizarEstudianteEnLobby({
         nombre: nombreEstudiante,
@@ -883,132 +1137,100 @@ function actualizarBarraTiempo() {
 // --- GENERADOR DE RETOS MATEMÁTICOS ---
 function generarRetoMatematico(nivel, problemaIndex = 1) {
     const semilla = generarSemillaUnica(obtenerSemillaDeJuego(), String(problemaIndex), String(nivel));
-    const r1 = productosConPrecios[Math.abs(semilla) % productosConPrecios.length];
-    let r2 = productosConPrecios[Math.abs(semilla + 7) % productosConPrecios.length];
-    while (r1.id === r2.id) {
-        r2 = productosConPrecios[Math.abs(semilla + 11) % productosConPrecios.length];
+    const cantidadProductos = 2 + (Math.abs(semilla) % 3); // 2, 3 o 4 productos
+    const seleccion = [];
+    let candidato = Math.abs(semilla) % productosConPrecios.length;
+
+    while (seleccion.length < cantidadProductos) {
+        const producto = productosConPrecios[candidato % productosConPrecios.length];
+        if (!seleccion.some(p => p.id === producto.id)) {
+            seleccion.push(producto);
+        }
+        candidato += 1 + ((problemaIndex + seleccion.length) % 5);
     }
 
-    const tipoReto = (problemaIndex - 1) % 10;
-    const cantidad = 2 + ((semilla + problemaIndex) % 3);
-    const descuentoPct = 10 + ((semilla + problemaIndex) % 5) * 5;
-    const metaDinero = 12 + ((semilla + problemaIndex) % 9) + (problemaIndex % 3);
+    const nombres = seleccion.map(p => `${p.emoji} ${p.nombre}`);
+    const listaProductos = nombres.length > 1
+        ? nombres.slice(0, -1).join(', ') + ' y ' + nombres.slice(-1)
+        : nombres[0];
+
+    const sumaBase = seleccion.reduce((total, prod) => total + prod.precio, 0);
+    const incrementoPorRonda = 1 + (rondaActual / totalRondasObjetivo) * 0.35;
+    const precioMeta = parseFloat((Math.round(sumaBase * incrementoPorRonda * 2) / 2).toFixed(2));
+
+    const tiempoBase = 65 - (cantidadProductos - 2) * 8 - Math.floor((rondaActual - 1) / 7) * 3;
+    const tiempoAsignado = Math.max(30, tiempoBase);
+
+    const billetes = [5, 10, 20, 50, 100, 200];
+    const billete = billetes[Math.abs(semilla + 3) % billetes.length];
+    const tipoReto = Math.abs(semilla + problemaIndex) % 7;
+    const cantidadRepetida = 2 + ((Math.abs(semilla + 5) % 3));
+    const descuentoPct = 10 + ((Math.abs(semilla + 9) % 5) * 5);
 
     switch (tipoReto) {
         case 0:
             return {
-                descripcion: `Problema ${problemaIndex}: compra exactamente 1 ${r1.emoji} y 1 ${r2.emoji}. Paga la cantidad correcta para este cliente personalizado.`,
-                evaluar: (car, total) => {
-                    const tieneR1 = car.some(i => i.id === r1.id && i.cant === 1);
-                    const tieneR2 = car.some(i => i.id === r2.id && i.cant === 1);
-                    const correcto = (tieneR1 && tieneR2 && car.length === 2);
-                    const precioReal = r1.precio + r2.precio;
-                    return { ok: correcto && total === precioReal, msg: `El total correcto era S/ ${precioReal.toFixed(2)}` };
-                }
+                descripcion: `Problema ${problemaIndex}: compra ${listaProductos} y paga S/ ${precioMeta.toFixed(2)} exactos. Usa las monedas y billetes del cajero.`,
+                tiempo: tiempoAsignado,
+                evaluar: (car, total) => ({ ok: total === precioMeta, msg: `El total correcto era S/ ${precioMeta.toFixed(2)}.` })
             };
 
         case 1: {
-            const billeteSencillo = 20;
-            const precioSuma = r1.precio + r2.precio;
-            const vueltoEsperado = billeteSencillo - precioSuma;
+            const vuelto = parseFloat((billete - precioMeta).toFixed(2));
             return {
-                descripcion: `Problema ${problemaIndex}: tienes un billete de S/20. Compra 1 ${r1.emoji} y 1 ${r2.emoji} y calcula cuántos soles de vuelto recibes.`,
-                evaluar: (car, total) => {
-                    const tieneR1 = car.some(i => i.id === r1.id);
-                    const tieneR2 = car.some(i => i.id === r2.id);
-                    return { ok: tieneR1 && tieneR2 && parseFloat(total.toFixed(2)) === parseFloat(vueltoEsperado.toFixed(2)), msg: `El vuelto correcto era S/ ${vueltoEsperado.toFixed(2)}` };
-                }
+                descripcion: `Problema ${problemaIndex}: el cliente paga con un billete de S/ ${billete}. Compra ${listaProductos} y devuelve el vuelto correcto: S/ ${vuelto.toFixed(2)}.`,
+                tiempo: tiempoAsignado,
+                evaluar: (car, total) => ({ ok: total === vuelto, msg: `El vuelto correcto era S/ ${vuelto.toFixed(2)}.` })
             };
         }
 
         case 2: {
-            const precioMult = r1.precio * cantidad;
+            const producto = seleccion[0];
+            const precioRepetido = parseFloat((producto.precio * cantidadRepetida).toFixed(2));
             return {
-                descripcion: `Problema ${problemaIndex}: lleva exactamente ${cantidad} unidades de ${r1.emoji}. ¿Cuánto pagarás en total?`,
+                descripcion: `Problema ${problemaIndex}: lleva ${cantidadRepetida} unidades de ${producto.emoji} ${producto.nombre}. ¿Cuánto pagas?`,
+                tiempo: tiempoAsignado,
                 evaluar: (car, total) => {
-                    const cumpleCant = car.some(i => i.id === r1.id && i.cant === cantidad);
-                    return { ok: cumpleCant && car.length === 1 && total === precioMult, msg: `El precio de ${cantidad} unidades es S/ ${precioMult.toFixed(2)}` };
+                    const cumple = car.some(i => i.id === producto.id && i.cant === cantidadRepetida);
+                    return { ok: cumple && total === precioRepetido, msg: `El total correcto era S/ ${precioRepetido.toFixed(2)}.` };
                 }
             };
         }
 
         case 3: {
-            const precioPar = Math.round(r1.precio) * 2;
+            const producto = seleccion[0];
+            const precioConDescuento = parseFloat((producto.precio * (1 - descuentoPct / 100)).toFixed(2));
             return {
-                descripcion: `Problema ${problemaIndex}: si 2 unidades de ${r1.emoji} cuestan S/ ${precioPar.toFixed(2)}, compra solo una unidad y paga su precio justo.`,
-                evaluar: (car, total) => {
-                    const precioUnitario = precioPar / 2;
-                    const tieneR1 = car.some(i => i.id === r1.id && i.cant === 1);
-                    return { ok: tieneR1 && car.length === 1 && total === precioUnitario, msg: `La mitad de S/ ${precioPar.toFixed(2)} es S/ ${precioUnitario.toFixed(2)}` };
-                }
+                descripcion: `Problema ${problemaIndex}: la ${producto.emoji} ${producto.nombre} tiene ${descuentoPct}% de descuento. Compra 1 unidad y paga S/ ${precioConDescuento.toFixed(2)}.`,
+                tiempo: tiempoAsignado,
+                evaluar: (car, total) => ({ ok: car.some(i => i.id === producto.id && i.cant === 1) && total === precioConDescuento, msg: `El precio con descuento era S/ ${precioConDescuento.toFixed(2)}.` })
             };
         }
 
         case 4: {
-            const descuentoMonto = r1.precio * (descuentoPct / 100);
-            const precioFinalDescuento = r1.precio - descuentoMonto;
+            const precioCombo = parseFloat((precioMeta + 1.5).toFixed(2));
             return {
-                descripcion: `Problema ${problemaIndex}: ¡Oferta del ${descuentoPct}%! La ${r1.emoji} tiene descuento. Agrégala y paga su precio rebajado.`,
-                evaluar: (car, total) => {
-                    const tieneR1 = car.some(i => i.id === r1.id && i.cant === 1);
-                    return { ok: tieneR1 && car.length === 1 && parseFloat(total.toFixed(2)) === parseFloat(precioFinalDescuento.toFixed(2)), msg: `El precio rebajado era S/ ${precioFinalDescuento.toFixed(2)}` };
-                }
+                descripcion: `Problema ${problemaIndex}: arma un combo con ${listaProductos} y paga S/ ${precioCombo.toFixed(2)}.`,
+                tiempo: tiempoAsignado,
+                evaluar: (car, total) => ({ ok: total === precioCombo, msg: `El combo costaba S/ ${precioCombo.toFixed(2)}.` })
             };
         }
 
         case 5: {
-            const precioCombo = r1.precio + r2.precio + (r1.precio * 0.5);
+            const totalBillete = Math.max(billete, precioMeta + 5);
+            const vuelto = parseFloat((totalBillete - precioMeta).toFixed(2));
             return {
-                descripcion: `Problema ${problemaIndex}: forma un combo con ${r1.emoji} y ${r2.emoji}; paga exactamente S/ ${precioCombo.toFixed(2)}.`,
-                evaluar: (car, total) => {
-                    const tieneR1 = car.some(i => i.id === r1.id && i.cant === 1);
-                    const tieneR2 = car.some(i => i.id === r2.id && i.cant === 1);
-                    return { ok: tieneR1 && tieneR2 && car.length === 2 && total === precioCombo, msg: `El combo cuesta S/ ${precioCombo.toFixed(2)}` };
-                }
-            };
-        }
-
-        case 6: {
-            const precioTriple = r1.precio * 3;
-            return {
-                descripcion: `Problema ${problemaIndex}: lleva 3 unidades de ${r1.emoji} y paga el total justo.`,
-                evaluar: (car, total) => {
-                    const cumpleCant = car.some(i => i.id === r1.id && i.cant === 3);
-                    return { ok: cumpleCant && car.length === 1 && total === precioTriple, msg: `3 unidades cuestan S/ ${precioTriple.toFixed(2)}` };
-                }
-            };
-        }
-
-        case 7: {
-            return {
-                descripcion: `Problema ${problemaIndex}: compra libre, llena el carrito con distintos productos y paga exactamente S/ ${metaDinero.toFixed(2)}.`,
-                evaluar: (car, total) => {
-                    return { ok: total === metaDinero, msg: `El monto final pagado debe ser de S/ ${metaDinero.toFixed(2)} exactos.` };
-                }
-            };
-        }
-
-        case 8: {
-            const precioDoble = r1.precio * 2 + r2.precio;
-            return {
-                descripcion: `Problema ${problemaIndex}: toma ${r1.emoji} y ${r2.emoji} en doble y simple cantidad, y paga S/ ${precioDoble.toFixed(2)}.`,
-                evaluar: (car, total) => {
-                    const tieneR1 = car.some(i => i.id === r1.id && i.cant === 2);
-                    const tieneR2 = car.some(i => i.id === r2.id && i.cant === 1);
-                    return { ok: tieneR1 && tieneR2 && car.length === 2 && total === precioDoble, msg: `El total correcto era S/ ${precioDoble.toFixed(2)}` };
-                }
+                descripcion: `Problema ${problemaIndex}: el cliente paga con S/ ${totalBillete}. Compra ${listaProductos} y devuelve S/ ${vuelto.toFixed(2)} de vuelto.`,
+                tiempo: tiempoAsignado,
+                evaluar: (car, total) => ({ ok: total === vuelto, msg: `El vuelto correcto era S/ ${vuelto.toFixed(2)}.` })
             };
         }
 
         default: {
-            const precioFinal = r1.precio + (r2.precio * 0.75);
             return {
-                descripcion: `Problema ${problemaIndex}: compra ${r1.emoji} y ${r2.emoji}; el total debe ser S/ ${precioFinal.toFixed(2)}.`,
-                evaluar: (car, total) => {
-                    const tieneR1 = car.some(i => i.id === r1.id && i.cant === 1);
-                    const tieneR2 = car.some(i => i.id === r2.id && i.cant === 1);
-                    return { ok: tieneR1 && tieneR2 && car.length === 2 && total === precioFinal, msg: `El total correcto era S/ ${precioFinal.toFixed(2)}` };
-                }
+                descripcion: `Problema ${problemaIndex}: revisa ${listaProductos} y paga S/ ${precioMeta.toFixed(2)} exactos con monedas y billetes reales.`,
+                tiempo: tiempoAsignado,
+                evaluar: (car, total) => ({ ok: total === precioMeta, msg: `El total correcto era S/ ${precioMeta.toFixed(2)}.` })
             };
         }
     }
@@ -1105,6 +1327,12 @@ function agregarDineroPago(monto) {
     document.getElementById('monto-pagado').innerText = `S/ ${montoColocadoPago.toFixed(2)}`;
 }
 
+function resetearPago() {
+    montoColocadoPago = 0;
+    document.getElementById('monto-pagado').innerText = 'S/ 0.00';
+    mostrarNotificacion('Puedes volver a ingresar monedas y billetes.', 'info');
+}
+
 function procesarPagoReto() {
     if (!retoActivo) return;
 
@@ -1112,6 +1340,7 @@ function procesarPagoReto() {
     const resultado = retoActivo.evaluar(carrito, montoColocadoPago);
 
     if (resultado.ok) {
+        totalAciertos++;
         sonarEfecto('correcto');
         mostrarNotificacion('¡Excelente compra! El cajero validó tu pago con éxito.', 'success');
         puntajeActual += 15;
@@ -1162,6 +1391,10 @@ function procesarYMostrarResultados() {
 
     const estudiantes = obtenerEstudiantesDeSala(codigoSalaActual);
     
+    document.getElementById('final-aciertos').innerText = totalAciertos;
+    document.getElementById('final-errores').innerText = totalErrores;
+    document.getElementById('final-puntos').innerText = `${puntajeActual} pts`;
+    
     // Ordenar de mayor a menor puntaje para el podio
     estudiantes.sort((a, b) => b.score - a.score);
 
@@ -1208,9 +1441,15 @@ function procesarYMostrarResultados() {
         `;
     } else {
         actionsRow.innerHTML = `
-            <button class="btn btn-estudiante" onclick="irAlInicio()">🏠 Volver a Empezar</button>
+            <button class="btn btn-play" onclick="jugarDeNuevo()">🔄 Jugar de nuevo</button>
+            <button class="btn btn-estudiante" onclick="irAlInicio()">🏠 Volver al Inicio</button>
         `;
     }
+}
+
+function jugarDeNuevo() {
+    desconectarYSalir();
+    window.location.reload();
 }
 
 // --- EXPORTAR A EXCEL DIRECTO (CSV COMPATIBLE) ---
