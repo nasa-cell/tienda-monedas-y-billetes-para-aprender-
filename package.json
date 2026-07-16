@@ -1,0 +1,13 @@
+{
+  "name": "tienda-educatiba",
+  "version": "1.0.0",
+  "description": "Juego educativo de compras y matemáticas con sincronización entre docente y estudiantes.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>🛒 La Tienda Matemática - ¡A comprar y aprender!</title>
+    <link rel="stylesheet" href="estilos.css?v=20260715-2">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div class="game-container">
+        <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+        
+        <header class="game-header">
+            <button id="btn-volver-inicio" class="btn-retroceder" onclick="irAlInicio()">🏠 Inicio</button>
+            <div class="brand">
+                <span class="logo-emoji">🛒</span>
+                <h1>La Tienda Matemática</h1>
+            </div>
+            <p class="subtitle">¡Aprende a gestionar tu dinero jugando!</p>
+        </header>
+
+        <div class="server-panel">
+            <div class="server-panel-header">
+                <h3>⚙️ Configuración manual</h3>
+                <p>Elige cómo quieres conectar la sala.</p>
+            </div>
+            <div class="server-row config-grid">
+                <label class="config-option">
+                    <input type="radio" name="sync-mode" value="local" checked>
+                    <span>Modo local</span>
+                </label>
+                <label class="config-option">
+                    <input type="radio" name="sync-mode" value="server">
+                    <span>Servidor</span>
+                </label>
+            </div>
+            <div class="server-row">
+                <input type="text" id="server-url" value="http://127.0.0.1:8000" placeholder="Ej. http://192.168.1.10:8000">
+                <button type="button" id="btn-guardar-configuracion" class="btn btn-sm btn-action" onclick="guardarServidor()">💾 Guardar</button>
+                <button type="button" id="btn-copiar-url" class="btn btn-sm btn-play" onclick="copiarUrlConexion()">📋 Copiar</button>
+            </div>
+            <p id="server-status" class="server-status">Modo local activo: la sala se comparte dentro del navegador.</p>
+            <p id="server-help" class="server-help">La app intentará detectar la IP de tu red para que la copies en otra PC.</p>
+            <p id="server-troubleshoot" class="server-help troubleshoot">Si aparece “tardó demasiado en responder”, revisa que el servidor esté abierto en la PC del docente y que ambos dispositivos estén en la misma red Wi‑Fi.</p>
+        </div>
+
+        <section id="pantalla-inicio" class="screen active">
+            <div class="welcome-box">
+                <div class="mascot-animation">🎒🍎✏️</div>
+                <h2>¡Bienvenidos a la Tienda!</h2>
+                <p>Selecciona tu rol para comenzar la aventura matemática:</p>
+                <div class="btn-row">
+                    <button id="btn-docente-inicio" class="btn btn-docente" onclick="irARegistroDocente()">👨‍🏫 Soy Docente</button>
+                    <button id="btn-estudiante-inicio" class="btn btn-estudiante" onclick="irAAccessoEstudiante()">👨‍🎓 Soy Estudiante</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="pantalla-registro-docente" class="screen">
+            <div class="box">
+                <h2>Acceso del Profesor</h2>
+                <p>Ingresa la contraseña para entrar al sistema de aula virtual.</p>
+                <div class="form-group">
+                    <label for="teacher-password">Contraseña:</label>
+                    <input type="password" id="teacher-password" placeholder="Ingresa la contraseña" maxlength="10">
+                </div>
+                <button id="btn-validar-docente" class="btn btn-action" onclick="validarAccesoDocente()">🔐 Ingresar</button>
+            </div>
+        </section>
+
+        <section id="pantalla-panel-docente" class="screen">
+            <div class="box">
+                <h2>Crear una Nueva Aula Virtual</h2>
+                <p>Genera un código único para que tus alumnos de primaria puedan unirse desde sus dispositivos.</p>
+                <button id="btn-generar-sala" class="btn btn-action" onclick="crearSalaJuego()">🎁 Generar Código de Sala</button>
+            </div>
+        </section>
+
+        <section id="pantalla-espera-docente" class="screen">
+            <div class="lobby-card">
+                <h3>Código de acceso para tus alumnos:</h3>
+                <div class="room-code-display" id="lobby-codigo-docente">------</div>
+                <p class="instructions">Comparte este código. Los alumnos aparecerán abajo en tiempo real.</p>
+            </div>
+            
+            <div class="players-monitor">
+                <div class="monitor-header">
+                    <h4>Estudiantes en la sala:</h4>
+                    <span class="counter-badge" id="lobby-contador-docente">0 estudiantes</span>
+                </div>
+                <ul class="players-grid" id="lobby-lista-docente">
+                    </ul>
+            </div>
+
+            <button class="btn btn-play" onclick="iniciarJuegoDocente()">🚀 ¡Iniciar Actividad!</button>
+        </section>
+
+        <section id="pantalla-acceso-estudiante" class="screen">
+            <div class="box">
+                <h2>🎒 ¡Únete a la Tienda!</h2>
+                <div class="form-group">
+                    <label for="student-name">Tu Nombre Completo:</label>
+                    <input type="text" id="student-name" placeholder="Ej. Valentina Mendoza" maxlength="25">
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="student-grade">Grado:</label>
+                        <select id="student-grade">
+                            <option value="">Selecciona un grado</option>
+                            <option value="1°">1°</option>
+                            <option value="2°">2°</option>
+                            <option value="3°">3°</option>
+                            <option value="4°">4°</option>
+                            <option value="5°">5°</option>
+                            <option value="6°">6°</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="student-section">Sección:</label>
+                        <select id="student-section">
+                            <option value="">Selecciona una sección</option>
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                            <option value="D">D</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="student-code">Código de la Sala (6 caracteres):</label>
+                    <input type="text" id="student-code" placeholder="Ej. MAT501" maxlength="6" class="code-input">
+                </div>
+                <button id="btn-ingresar-estudiante" class="btn btn-play" onclick="unirseASalaEstudiante()">🛒 ¡Ingresar a la Tienda!</button>
+            </div>
+        </section>
+
+        <section id="pantalla-espera-estudiante" class="screen">
+            <div class="lobby-card text-center">
+                <div class="loader-duck">🦆</div>
+                <h3>¡Ya estás dentro de la sala!</h3>
+                <div class="room-code-display" id="lobby-codigo-estudiante">------</div>
+                <p>Por favor, espera a que tu docente inicie el juego para empezar a comprar.</p>
+                <p id="estudiante-espera-sub">Compañeros conectados: <strong id="lobby-contador-estudiante">0</strong></p>
+            </div>
+        </section>
+
+        <section id="pantalla-juego" class="screen">
+            <div class="hud-bar">
+                <div class="hud-item hud-score">
+                    <span class="hud-label">⭐ Puntos</span>
+                    <strong id="hud-puntos">0</strong>
+                </div>
+                <div class="hud-item hud-level">
+                    <span class="hud-label">🏆 Nivel</span>
+                    <strong id="hud-nivel">1</strong>
+                </div>
+                <div class="hud-item hud-round">
+                    <span class="hud-label">🔢 Ronda</span>
+                    <strong id="hud-ronda">1/30</strong>
+                </div>
+                <div class="hud-item hud-time">
+                    <span class="hud-label">⏱️ Tiempo</span>
+                    <strong id="hud-timer">60s</strong>
+                </div>
+            </div>
+
+            <div class="challenge-box">
+                <div class="challenge-title">🎯 Reto Matemático:</div>
+                <div class="challenge-text" id="challenge-desc">Cargando desafío...</div>
+                <div class="timer-bar-container">
+                    <div class="timer-bar-fill" id="timer-bar"></div>
+                </div>
+            </div>
+
+            <div class="shop-layout">
+                <div class="shop-shelf">
+                    <h3>Estantes de la Tienda 🍎🥛</h3>
+                    <div class="shop-search">
+                        <input type="text" id="buscador-productos" placeholder="🔎 Buscar producto..." oninput="filtrarProductos()">
+                    </div>
+                    <div class="products-grid" id="tienda-productos">
+                        </div>
+                </div>
+
+                <div class="shop-checkout">
+                    <h3>Tu Carrito 🛒</h3>
+                    <div class="cart-box" id="carrito-items">
+                        <p class="empty-cart-msg">El carrito está vacío</p>
+                    </div>
+                    
+                    <div class="cart-summary">
+                        <div>Subtotal: <span id="cart-subtotal">S/ 0.00</span></div>
+                        <div>Descuento: <span id="cart-descuento">S/ 0.00</span></div>
+                        <div class="total-highlight">TOTAL: <span id="cart-total">S/ 0.00</span></div>
+                    </div>
+
+                    <div class="cart-actions">
+                        <button class="btn btn-red btn-sm" onclick="vaciarCarrito()">🗑️ Vaciar</button>
+                    </div>
+
+                    <div class="payment-terminal">
+                        <h4>💰 Paga Aquí (Arrastra o haz clic en las monedas/billetes):</h4>
+                        <div class="cash-selector">
+                            <button class="coin" onclick="agregarDineroPago(0.50)">S/0.50</button>
+                            <button class="coin" onclick="agregarDineroPago(1)">S/1</button>
+                            <button class="coin" onclick="agregarDineroPago(2)">S/2</button>
+                            <button class="coin" onclick="agregarDineroPago(5)">S/5</button>
+                            <button class="bill" onclick="agregarDineroPago(10)">S/10</button>
+                            <button class="bill" onclick="agregarDineroPago(20)">S/20</button>
+                            <button class="bill" onclick="agregarDineroPago(50)">S/50</button>
+                            <button class="bill" onclick="agregarDineroPago(100)">S/100</button>
+                            <button class="bill bill-large" onclick="agregarDineroPago(200)">S/200</button>
+                        </div>
+                        <div class="payment-status">
+                            <div>Has colocado: <strong id="monto-pagado" class="total-highlight">S/ 0</strong></div>
+                            <button class="btn btn-green btn-block" onclick="procesarPagoReto()">💳 Confirmar Pago / Enviar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="pantalla-control-docente" class="screen">
+            <div class="monitor-controls">
+                <div>
+                    <h2>📊 Monitor del Aula en Vivo</h2>
+                    <p class="monitor-subtitle">Observa el avance de cada estudiante en tiempo real.</p>
+                </div>
+                <div class="btn-row">
+                    <button class="btn btn-red" onclick="finalizarJuegoDocente()">🛑 Finalizar Partida</button>
+                </div>
+            </div>
+
+            <div class="class-metrics">
+                <div class="metric-card">
+                    <h5>Promedio General</h5>
+                    <span id="metric-promedio">0 pts</span>
+                </div>
+                <div class="metric-card">
+                    <h5>Total Respuestas</h5>
+                    <span id="metric-respuestas">0</span>
+                </div>
+                <div class="metric-card">
+                    <h5>Errores Totales</h5>
+                    <span id="metric-errores" style="color:var(--red-kid);">0</span>
+                </div>
+            </div>
+
+            <div class="monitor-toolbar">
+                <input type="text" id="buscador-estudiantes" placeholder="🔎 Buscar estudiante..." oninput="filtrarTablaDocente()">
+                <div class="toolbar-hint">Puedes filtrar por nombre, grado o sección.</div>
+            </div>
+
+            <div class="table-container">
+                <table id="tabla-monitoreo-docente">
+                    <thead>
+                        <tr>
+                            <th>Estudiante</th>
+                            <th>Grado/Sec</th>
+                            <th>Puntaje</th>
+                            <th>Nivel</th>
+                            <th>Progreso</th>
+                            <th>Tiempo Activo</th>
+                            <th>Errores</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpo-tabla-docente">
+                        </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="pantalla-resultados" class="screen">
+            <h2 class="text-center">🏁 ¡Fin de la Aventura de Compra!</h2>
+            
+            <div class="podium">
+                <div class="podium-step step-2">
+                    <div class="medal-emoji">🥈</div>
+                    <div class="podium-name" id="podio-nombre-2">-</div>
+                    <div class="podium-score" id="podio-score-2">0 pts</div>
+                </div>
+                <div class="podium-step step-1">
+                    <div class="crown-emoji">👑</div>
+                    <div class="medal-emoji">🥇</div>
+                    <div class="podium-name" id="podio-nombre-1">-</div>
+                    <div class="podium-score" id="podio-score-1">0 pts</div>
+                </div>
+                <div class="podium-step step-3">
+                    <div class="medal-emoji">🥉</div>
+                    <div class="podium-name" id="podio-nombre-3">-</div>
+                    <div class="podium-score" id="podio-score-3">0 pts</div>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <h3>Tabla Completa de Resultados</h3>
+                <table id="tabla-resultados-finales">
+                    <thead>
+                        <tr>
+                            <th>Puesto</th>
+                            <th>Estudiante</th>
+                            <th>Grado y Sección</th>
+                            <th>Puntaje Máximo</th>
+                            <th>Nivel Alcanzado</th>
+                            <th>Errores</th>
+                            <th>Tiempo Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpo-tabla-finales">
+                        </tbody>
+                </table>
+            </div>
+
+            <div class="btn-row" id="final-actions">
+                </div>
+        </section>
+
+    </div>
+
+    <script src="script.js?v=20260715-2"></script>
+</body>
+</html>
