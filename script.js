@@ -156,6 +156,27 @@ function mostrarPantalla(screenId) {
     } else {
         btnVolver.style.display = 'block';
     }
+
+    if (['pantalla-espera-docente', 'pantalla-espera-estudiante', 'pantalla-control-docente'].includes(screenId) && codigoSalaActual) {
+        refrescarSalaServidor();
+    }
+}
+
+async function refrescarSalaServidor() {
+    const base = obtenerBaseServidor();
+    if (!base || !codigoSalaActual) return;
+
+    try {
+        const respuesta = await fetch(`${base}/api/state/${codigoSalaActual}`);
+        if (!respuesta.ok) return;
+        const datos = await respuesta.json();
+        if (datos?.sala) {
+            guardarDatoPersistente(`sala_${codigoSalaActual}`, JSON.stringify(datos.sala));
+            actualizarVistaDesdeSala(datos.sala);
+        }
+    } catch (error) {
+        // No bloquear el flujo si el servidor no responde.
+    }
 }
 
 function irAlInicio() {
@@ -505,21 +526,19 @@ async function unirseASalaEstudiante() {
     }
 
     let salaRaw = leerDatoPersistente(`sala_${codigo}`);
-    if (!salaRaw) {
-        const base = obtenerBaseServidor();
-        if (base) {
-            try {
-                const respuesta = await fetch(`${base}/api/state/${codigo}`);
-                if (respuesta.ok) {
-                    const datos = await respuesta.json();
-                    if (datos?.sala) {
-                        salaRaw = JSON.stringify(datos.sala);
-                        guardarDatoPersistente(`sala_${codigo}`, salaRaw);
-                    }
+    const base = obtenerBaseServidor();
+    if (base) {
+        try {
+            const respuesta = await fetch(`${base}/api/state/${codigo}`);
+            if (respuesta.ok) {
+                const datos = await respuesta.json();
+                if (datos?.sala) {
+                    salaRaw = JSON.stringify(datos.sala);
+                    guardarDatoPersistente(`sala_${codigo}`, salaRaw);
                 }
-            } catch (error) {
-                // Se mantiene el modo local si el servidor no responde.
             }
+        } catch (error) {
+            // Si no hay servidor disponible, usamos lo que haya en local.
         }
     }
 
@@ -577,7 +596,7 @@ function activarSincronizacionReactiva() {
 
     const refrescarDesdeServidor = async () => {
         const base = obtenerBaseServidor();
-        if (!base || !codigoSalaActual) return;
+        if (!base || !codigoSalaActual) return null;
 
         try {
             const respuesta = await fetch(`${base}/api/state/${codigoSalaActual}`);
@@ -586,21 +605,21 @@ function activarSincronizacionReactiva() {
                 if (datos?.sala) {
                     ultimoEstadoSala = datos.sala;
                     guardarDatoPersistente(`sala_${codigoSalaActual}`, JSON.stringify(datos.sala));
+                    return datos.sala;
                 }
             }
         } catch (error) {
             // Sincronización externa no disponible; se mantiene el modo local.
         }
+        return null;
     };
 
-    refrescarDesdeServidor();
-
-    // Verificación cada segundo para simular comunicación bidireccional inmediata
-    syncInterval = setInterval(() => {
+    const sincronizarIntervalo = async () => {
+        const salaRemota = await refrescarDesdeServidor();
         const salaRaw = leerDatoPersistente(`sala_${codigoSalaActual}`);
         if (!salaRaw) return;
 
-        const sala = JSON.parse(salaRaw);
+        const sala = salaRemota || JSON.parse(salaRaw);
         const estudiantes = Array.isArray(sala?.estudiantes) && sala.estudiantes.length > 0
             ? sala.estudiantes
             : obtenerEstudiantesDeSala(codigoSalaActual);
@@ -635,7 +654,10 @@ function activarSincronizacionReactiva() {
                 procesarYMostrarResultados();
             }
         }
-    }, 1000);
+    };
+
+    sincronizarIntervalo();
+    syncInterval = setInterval(sincronizarIntervalo, 1000);
 }
 
 
