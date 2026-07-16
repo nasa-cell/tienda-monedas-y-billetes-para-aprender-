@@ -6,6 +6,32 @@ const port = process.env.PORT || 3000;
 const root = __dirname;
 const salas = new Map();
 
+const salaPredeterminada = {
+  codigo: '2026COLE',
+  estado: 'espera',
+  precios: [
+    { id: 1, emoji: '🍎', nombre: 'Manzana', precio: 1.50 },
+    { id: 2, emoji: '🍌', nombre: 'Plátano', precio: 1.00 },
+    { id: 3, emoji: '🍞', nombre: 'Pan', precio: 2.50 },
+    { id: 4, emoji: '🥛', nombre: 'Leche', precio: 3.00 },
+    { id: 5, emoji: '🍪', nombre: 'Galletas', precio: 2.00 },
+    { id: 6, emoji: '🍫', nombre: 'Chocolate', precio: 2.50 },
+    { id: 7, emoji: '🧃', nombre: 'Jugo', precio: 3.50 },
+    { id: 8, emoji: '🧀', nombre: 'Queso', precio: 2.50 },
+    { id: 9, emoji: '🥚', nombre: 'Huevos', precio: 4.00 },
+    { id: 10, emoji: '🍚', nombre: 'Arroz', precio: 2.50 },
+    { id: 11, emoji: '🥕', nombre: 'Zanahoria', precio: 1.50 },
+    { id: 12, emoji: '🍉', nombre: 'Sandía', precio: 3.00 },
+    { id: 13, emoji: '🧁', nombre: 'Cupcake', precio: 2.50 },
+    { id: 14, emoji: '☕', nombre: 'Café', precio: 4.00 },
+    { id: 15, emoji: '🍇', nombre: 'Uvas', precio: 3.00 },
+    { id: 16, emoji: '🥪', nombre: 'Sandwich', precio: 4.50 }
+  ],
+  estudiantes: []
+};
+
+salas.set(salaPredeterminada.codigo, salaPredeterminada);
+
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
