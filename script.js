@@ -664,6 +664,7 @@ async function reiniciarSalaDocente() {
     const sala = salaRaw ? JSON.parse(salaRaw) : { codigo: codigoSalaActual, estado: 'espera', precios: productosConPrecios, estudiantes: [] };
     sala.estado = 'espera';
     sala.estudiantes = [];
+    sala.reinicioId = Date.now();
     guardarDatoPersistente(`sala_${codigoSalaActual}`, JSON.stringify(sala));
 
     renderizarEstudiantesEnDocente([]);
@@ -671,10 +672,33 @@ async function reiniciarSalaDocente() {
     document.getElementById('lobby-codigo-docente').innerText = codigoSalaActual;
     mostrarNotificacion('Aula reiniciada. Ya puedes recibir nuevos estudiantes.', 'success');
 
-    difundirCambioPersistencia('tienda-sync', { codigo: codigoSalaActual });
+    difundirCambioPersistencia('tienda-sync', { codigo: codigoSalaActual, reinicioId: sala.reinicioId });
     await sincronizarEstadoConServidor();
     await refrescarSalaServidor();
     mostrarPantalla('pantalla-espera-docente');
+}
+
+function limpiarSesionEstudiantePorReinicio() {
+    const estudianteClaves = [];
+    const fuentes = [localStorage, sessionStorage];
+
+    fuentes.forEach(storage => {
+        try {
+            for (let i = 0; i < storage.length; i++) {
+                const clave = storage.key(i);
+                if (clave && clave.startsWith(`estudiante_${codigoSalaActual}_`)) {
+                    estudianteClaves.push({ storage, clave });
+                }
+            }
+        } catch (e) {}
+    });
+
+    estudianteClaves.forEach(({ storage, clave }) => storage.removeItem(clave));
+    localStorage.removeItem(`sala_${codigoSalaActual}`);
+    sessionStorage.removeItem(`sala_${codigoSalaActual}`);
+    localStorage.removeItem(`sala_reinicio_${codigoSalaActual}`);
+    mostrarNotificacion('Tu sesión de estudiante se ha reiniciado. Vuelve a entrar con el código.', 'warning');
+    mostrarPantalla('pantalla-acceso-estudiante');
 }
 
 
@@ -888,6 +912,15 @@ function activarSincronizacionReactiva() {
         if (!salaRaw) return;
 
         const sala = salaRemota || JSON.parse(salaRaw);
+        if (miRol === 'estudiante' && sala?.reinicioId) {
+            const ultimaReinicio = Number(localStorage.getItem(`sala_reinicio_${codigoSalaActual}`) || '0');
+            if (sala.reinicioId > ultimaReinicio) {
+                localStorage.setItem(`sala_reinicio_${codigoSalaActual}`, String(sala.reinicioId));
+                limpiarSesionEstudiantePorReinicio();
+                return;
+            }
+        }
+
         const estudiantes = Array.isArray(sala?.estudiantes) && sala.estudiantes.length > 0
             ? sala.estudiantes
             : obtenerEstudiantesDeSala(codigoSalaActual);
@@ -897,7 +930,6 @@ function activarSincronizacionReactiva() {
 
         if (miRol === 'docente') {
             if (document.getElementById('pantalla-control-docente').classList.contains('active')) {
-                // Actualizar Panel de monitoreo en vivo
                 const estudiantesControl = Array.isArray(sala?.estudiantes) ? sala.estudiantes : estudiantes;
                 actualizarPanelSeguimientoDocente(estudiantesControl);
             }
@@ -909,13 +941,11 @@ function activarSincronizacionReactiva() {
                 const estudiantesActuales = Array.isArray(sala?.estudiantes) ? sala.estudiantes : estudiantes;
                 actualizarContadorEstudiante(estudiantesActuales);
 
-                // Si el docente da inicio a la partida
                 if (sala.estado === 'jugando') {
                     comenzarDesafiosEstudiante();
                 }
             }
 
-            // Si el docente finaliza la partida mientras el alumno está comprando
             if (sala.estado === 'finalizado' && document.getElementById('pantalla-juego').classList.contains('active')) {
                 clearInterval(temporizadorReto);
                 clearInterval(temporizadorTotal);
