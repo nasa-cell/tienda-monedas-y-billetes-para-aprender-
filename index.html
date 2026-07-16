@@ -24,30 +24,6 @@
             <p class="subtitle">¡Aprende a gestionar tu dinero jugando!</p>
         </header>
 
-        <div class="server-panel">
-            <div class="server-panel-header">
-                <h3>⚙️ Configuración manual</h3>
-                <p>Elige cómo quieres conectar la sala.</p>
-            </div>
-            <div class="server-row config-grid">
-                <label class="config-option">
-                    <input type="radio" name="sync-mode" value="local" checked>
-                    <span>Modo local</span>
-                </label>
-                <label class="config-option">
-                    <input type="radio" name="sync-mode" value="server">
-                    <span>Servidor</span>
-                </label>
-            </div>
-            <div class="server-row">
-                <input type="text" id="server-url" value="http://127.0.0.1:8000" placeholder="Ej. http://192.168.1.10:8000">
-                <button type="button" id="btn-guardar-configuracion" class="btn btn-sm btn-action" onclick="guardarServidor()">💾 Guardar</button>
-                <button type="button" id="btn-copiar-url" class="btn btn-sm btn-play" onclick="copiarUrlConexion()">📋 Copiar</button>
-            </div>
-            <p id="server-status" class="server-status">Modo local activo: la sala se comparte dentro del navegador.</p>
-            <p id="server-help" class="server-help">La app intentará detectar la IP de tu red para que la copies en otra PC.</p>
-            <p id="server-troubleshoot" class="server-help troubleshoot">Si aparece “tardó demasiado en responder”, revisa que el servidor esté abierto en la PC del docente y que ambos dispositivos estén en la misma red Wi‑Fi.</p>
-        </div>
 
         <section id="pantalla-inicio" class="screen active">
             <div class="welcome-box">

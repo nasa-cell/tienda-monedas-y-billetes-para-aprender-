@@ -117,107 +117,6 @@ function difundirCambioPersistencia(tipo, payload) {
     } catch (error) {}
 }
 
-function guardarServidor() {
-    const input = document.getElementById('server-url');
-    const status = document.getElementById('server-status');
-    const help = document.getElementById('server-help');
-    const troubleshoot = document.getElementById('server-troubleshoot');
-    const modoSeleccionado = document.querySelector('input[name="sync-mode"]:checked');
-    if (!input) return;
-
-    const modo = modoSeleccionado ? modoSeleccionado.value : 'local';
-    let valor = (input.value || '').trim();
-
-    if (modo === 'server') {
-        if (!valor && typeof window !== 'undefined' && window.location && window.location.origin) {
-            const origin = window.location.origin;
-            if (origin && origin !== 'null' && origin !== 'file://') {
-                valor = origin;
-            }
-        }
-        servidorWiFi = valor || 'http://127.0.0.1:8000';
-        input.value = servidorWiFi;
-    } else {
-        servidorWiFi = 'modo-local';
-    }
-
-    if (status) {
-        if (servidorWiFi && servidorWiFi !== 'modo-local') {
-            status.textContent = `Conectado a ${servidorWiFi}. Si la URL no responde, el sistema seguirá en modo local.`;
-        } else {
-            status.textContent = 'Modo local activo: la sala se comparte dentro del navegador.';
-        }
-    }
-
-    if (help) {
-        help.textContent = modo === 'server'
-            ? `URL preparada: ${servidorWiFi}`
-            : 'La sala se compartirá dentro del navegador hasta que abras un servidor.';
-    }
-
-    if (troubleshoot) {
-        troubleshoot.style.display = modo === 'server' ? 'block' : 'none';
-    }
-
-    difundirCambioPersistencia('tienda-sync', { codigo: codigoSalaActual || 'sin-sala' });
-}
-
-function copiarUrlConexion() {
-    const input = document.getElementById('server-url');
-    const status = document.getElementById('server-status');
-    if (!input) return;
-
-    const texto = (input.value || '').trim();
-    if (!texto) return;
-
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(texto).then(() => {
-            if (status) {
-                status.textContent = `URL lista para copiar: ${texto}`;
-            }
-        }).catch(() => {
-            if (status) {
-                status.textContent = `URL preparada: ${texto}`;
-            }
-        });
-    } else if (status) {
-        status.textContent = `URL preparada: ${texto}`;
-    }
-}
-
-async function establecerServidorPorDefecto() {
-    const input = document.getElementById('server-url');
-    const status = document.getElementById('server-status');
-    const help = document.getElementById('server-help');
-    const troubleshoot = document.getElementById('server-troubleshoot');
-    const radioLocal = document.querySelector('input[name="sync-mode"][value="local"]');
-    const radioServidor = document.querySelector('input[name="sync-mode"][value="server"]');
-    if (!input || !status) return false;
-
-    const origin = (typeof window !== 'undefined' && window.location && window.location.origin)
-        ? window.location.origin
-        : '';
-    const originValida = origin && origin !== 'null' && origin !== 'file://';
-
-    if (originValida) {
-        input.value = origin;
-        servidorWiFi = origin;
-        if (radioServidor) radioServidor.checked = true;
-        if (radioLocal) radioLocal.checked = false;
-        status.textContent = `Conectado a ${origin}. Si la URL no responde, el sistema seguirá en modo local.`;
-        if (help) help.textContent = `URL preparada: ${origin}`;
-        if (troubleshoot) troubleshoot.style.display = 'block';
-        return true;
-    }
-
-    if (radioLocal) radioLocal.checked = true;
-    if (radioServidor) radioServidor.checked = false;
-    servidorWiFi = 'modo-local';
-    status.textContent = 'Modo local activo: la sala se comparte dentro del navegador.';
-    if (help) help.textContent = 'La sala se compartirá dentro del navegador hasta que abras un servidor.';
-    if (troubleshoot) troubleshoot.style.display = 'none';
-    return false;
-}
 
 function inicializarPersistenciaReactiva() {
     if (typeof window === 'undefined' || autoSyncActivo) return;
@@ -281,7 +180,6 @@ window.addEventListener('DOMContentLoaded', () => {
     if (btnIngresarEstudiante) btnIngresarEstudiante.addEventListener('click', unirseASalaEstudiante);
 
     inicializarPersistenciaReactiva();
-    establecerServidorPorDefecto();
 });
 
 // --- GENERADOR DE AUDIO CON SINTETIZADOR DE NAVEGADOR ---
