@@ -644,6 +644,34 @@ function eliminarTodosEstudiantesSala(codigo) {
     keysAEliminar.forEach(({ storage, clave }) => storage.removeItem(clave));
 }
 
+function reiniciarSalaDocente() {
+    if (!codigoSalaActual) {
+        mostrarNotificacion('No hay sala activa para reiniciar.', 'warning');
+        return;
+    }
+
+    if (!confirm('¿Deseas borrar a los estudiantes anteriores y dejar la sala lista para nuevos usuarios?')) {
+        return;
+    }
+
+    eliminarTodosEstudiantesSala(codigoSalaActual);
+
+    const salaRaw = leerDatoPersistente(`sala_${codigoSalaActual}`);
+    const sala = salaRaw ? JSON.parse(salaRaw) : { codigo: codigoSalaActual, estado: 'espera', precios: productosConPrecios, estudiantes: [] };
+    sala.estado = 'espera';
+    sala.estudiantes = [];
+    guardarDatoPersistente(`sala_${codigoSalaActual}`, JSON.stringify(sala));
+
+    renderizarEstudiantesEnDocente([]);
+    actualizarPanelSeguimientoDocente([]);
+    document.getElementById('lobby-codigo-docente').innerText = codigoSalaActual;
+    mostrarNotificacion('Aula reiniciada. Ya puedes recibir nuevos estudiantes.', 'success');
+
+    difundirCambioPersistencia('tienda-sync', { codigo: codigoSalaActual });
+    void sincronizarEstadoConServidor();
+    mostrarPantalla('pantalla-espera-docente');
+}
+
 
 /**
  * ==========================================
