@@ -383,15 +383,9 @@ function validarAccesoDocente() {
 
 function crearSalaJuego() {
     sonarEfecto('click');
-    
-    // Generar código único lúdico (3 letras, 3 números)
-    const letras = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-    const numeros = "123456789";
-    let randomCode = "";
-    for (let i = 0; i < 3; i++) randomCode += letras.charAt(Math.floor(Math.random() * letras.length));
-    for (let i = 0; i < 3; i++) randomCode += numeros.charAt(Math.floor(Math.random() * numeros.length));
 
-    codigoSalaActual = randomCode;
+    const codigoFijo = '2026COLE';
+    codigoSalaActual = codigoFijo;
 
     // Generar Precios Aleatorios para la partida
     productosConPrecios = productosBase.map(p => {
