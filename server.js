@@ -90,12 +90,15 @@ const server = http.createServer((req, res) => {
         const estudiantes = data?.students || data?.payload?.students;
 
         if (codigo) {
-          const existing = salas.get(codigo) || { codigo, estado: 'espera', precios: [], estudiantes: [] };
+          const existing = salas.get(codigo) || { codigo, estado: 'espera', precios: [], estudiantes: [], reinicioId: null };
           if (sala) {
             Object.assign(existing, sala);
           }
           if (Array.isArray(estudiantes)) {
             existing.estudiantes = estudiantes;
+          }
+          if (sala?.reinicioId) {
+            existing.reinicioId = sala.reinicioId;
           }
           salas.set(codigo, existing);
         }

@@ -485,6 +485,7 @@ async function sincronizarEstadoConServidor() {
         codigo: codigoSalaActual,
         estado: salaLocal?.estado || 'espera',
         precios: salaLocal?.precios || productosConPrecios,
+        reinicioId: salaLocal?.reinicioId || null,
         estudiantes: estudiantes.map(estudiante => ({
             nombre: estudiante.nombre,
             grado: estudiante.grado,
@@ -507,7 +508,8 @@ async function sincronizarEstadoConServidor() {
                 room: {
                     codigo: codigoSalaActual,
                     estado: salaLocal?.estado || 'espera',
-                    precios: salaLocal?.precios || productosConPrecios
+                    precios: salaLocal?.precios || productosConPrecios,
+                    reinicioId: salaLocal?.reinicioId || null
                 },
                 students: estudiantes.map(estudiante => ({
                     nombre: estudiante.nombre,
