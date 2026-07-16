@@ -185,65 +185,7 @@ function copiarUrlConexion() {
     }
 }
 
-async function detectarDireccionRed() {
-    const input = document.getElementById('server-url');
-    if (!input) return null;
-
-    const candidatos = new Set();
-    const fallback = '127.0.0.1';
-
-    if (window.RTCPeerConnection || window.webkitRTCPeerConnection) {
-        try {
-            const pc = new (window.RTCPeerConnection || window.webkitRTCPeerConnection)({
-                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-            });
-
-            const timeout = setTimeout(() => {
-                pc.close();
-            }, 1600);
-
-            pc.onicecandidate = (event) => {
-                if (!event.candidate) return;
-                const match = event.candidate.candidate.match(/([0-9]{1,3}\.){3}[0-9]{1,3}/);
-                if (match) {
-                    const ip = match[0];
-                    if (!ip.startsWith('127.') && !ip.startsWith('0.') && !ip.startsWith('169.254.')) {
-                        candidatos.add(ip);
-                    }
-                }
-            };
-
-            pc.createDataChannel('');
-            await pc.createOffer();
-            await pc.setLocalDescription({ type: 'offer', sdp: '' });
-            clearTimeout(timeout);
-            pc.close();
-        } catch (error) {
-            // Se usa el valor por defecto si la detección falla.
-        }
-    }
-
-    let ipEncontrado = Array.from(candidatos)[0] || fallback;
-    if (ipEncontrado === fallback) {
-        try {
-            const ips = await fetch('https://api.ipify.org?format=json');
-            if (ips.ok) {
-                const data = await ips.json();
-                if (data?.ip) {
-                    ipEncontrado = data.ip;
-                }
-            }
-        } catch (error) {
-            // Se conserva la IP local si no se puede consultar la IP pública.
-        }
-    }
-
-    const urlDetectada = `http://${ipEncontrado}:8000`;
-    input.value = urlDetectada;
-    return urlDetectada;
-}
-
-async function intentarConexionAutomatica() {
+async function establecerServidorPorDefecto() {
     const input = document.getElementById('server-url');
     const status = document.getElementById('server-status');
     const help = document.getElementById('server-help');
@@ -252,47 +194,29 @@ async function intentarConexionAutomatica() {
     const radioServidor = document.querySelector('input[name="sync-mode"][value="server"]');
     if (!input || !status) return false;
 
-    const hostOrigin = (typeof window !== 'undefined' && window.location && window.location.origin)
+    const origin = (typeof window !== 'undefined' && window.location && window.location.origin)
         ? window.location.origin
         : '';
-    const originValida = hostOrigin && hostOrigin !== 'null' && hostOrigin !== 'file://';
+    const originValida = origin && origin !== 'null' && origin !== 'file://';
 
-    let propuesta = originValida ? hostOrigin : 'http://127.0.0.1:8000';
-    let modo = originValida ? 'server' : 'local';
-
-    if (!originValida) {
-        const base = await detectarDireccionRed();
-        if (base) {
-            propuesta = base;
-            modo = 'server';
-        }
-    }
-
-    input.value = propuesta;
-
-    if (help) {
-        help.textContent = modo === 'server'
-            ? `URL sugerida para otra PC en la misma red Wi‑Fi: ${propuesta}`
-            : 'La app intentará detectar la IP de tu red para que la copies en otra PC.';
-    }
-
-    if (troubleshoot) {
-        troubleshoot.style.display = 'block';
-    }
-
-    if (modo === 'server') {
+    if (originValida) {
+        input.value = origin;
+        servidorWiFi = origin;
         if (radioServidor) radioServidor.checked = true;
         if (radioLocal) radioLocal.checked = false;
-        status.textContent = `URL lista: ${propuesta}. Si no responde, la app seguirá funcionando en modo local.`;
-        servidorWiFi = propuesta;
-    } else {
-        if (radioLocal) radioLocal.checked = true;
-        if (radioServidor) radioServidor.checked = false;
-        status.textContent = 'Modo local activo: la sala se comparte dentro del navegador.';
-        help.textContent = 'La app funcionará en modo local o con un servidor remoto si cambias la configuración.';
-        servidorWiFi = 'modo-local';
+        status.textContent = `Conectado a ${origin}. Si la URL no responde, el sistema seguirá en modo local.`;
+        if (help) help.textContent = `URL preparada: ${origin}`;
+        if (troubleshoot) troubleshoot.style.display = 'block';
+        return true;
     }
-    return true;
+
+    if (radioLocal) radioLocal.checked = true;
+    if (radioServidor) radioServidor.checked = false;
+    servidorWiFi = 'modo-local';
+    status.textContent = 'Modo local activo: la sala se comparte dentro del navegador.';
+    if (help) help.textContent = 'La sala se compartirá dentro del navegador hasta que abras un servidor.';
+    if (troubleshoot) troubleshoot.style.display = 'none';
+    return false;
 }
 
 function inicializarPersistenciaReactiva() {
@@ -357,7 +281,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (btnIngresarEstudiante) btnIngresarEstudiante.addEventListener('click', unirseASalaEstudiante);
 
     inicializarPersistenciaReactiva();
-    intentarConexionAutomatica();
+    establecerServidorPorDefecto();
 });
 
 // --- GENERADOR DE AUDIO CON SINTETIZADOR DE NAVEGADOR ---
