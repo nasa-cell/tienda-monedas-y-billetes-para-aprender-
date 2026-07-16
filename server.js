@@ -112,8 +112,11 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (req.method === 'GET' && (req.url.startsWith('/state/') || req.url.startsWith('/api/state/'))) {
-    const codigo = req.url.split('/state/')[1] || req.url.split('/api/state/')[1];
+  const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
+
+  if (req.method === 'GET' && (parsedUrl.pathname.startsWith('/state/') || parsedUrl.pathname.startsWith('/api/state/'))) {
+    const partes = parsedUrl.pathname.split('/').filter(Boolean);
+    const codigo = partes[partes.length - 1];
     const sala = salas.get(codigo);
     if (sala) {
       sendJson(res, 200, { ok: true, sala });
@@ -122,8 +125,6 @@ const server = http.createServer((req, res) => {
     }
     return;
   }
-
-  const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
   const urlPath = parsedUrl.pathname === '/' ? '/index.html' : parsedUrl.pathname;
   const filePath = path.join(root, decodeURIComponent(urlPath));
   serveFile(res, filePath);
