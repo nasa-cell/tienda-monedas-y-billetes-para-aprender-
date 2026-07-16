@@ -698,7 +698,6 @@ function limpiarSesionEstudiantePorReinicio() {
     estudianteClaves.forEach(({ storage, clave }) => storage.removeItem(clave));
     localStorage.removeItem(`sala_${codigoSalaActual}`);
     sessionStorage.removeItem(`sala_${codigoSalaActual}`);
-    localStorage.removeItem(`sala_reinicio_${codigoSalaActual}`);
     mostrarNotificacion('Tu sesión de estudiante se ha reiniciado. Vuelve a entrar con el código.', 'warning');
     mostrarPantalla('pantalla-acceso-estudiante');
 }
