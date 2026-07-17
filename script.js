@@ -647,31 +647,39 @@ function eliminarEstudiantesDuplicadosPorIdentidad(codigo, nombre, grado, seccio
 
 function normalizarEstudiantesConId(estudiantes, codigo) {
     const guardados = obtenerEstudiantesDeSala(codigo);
-    const usados = new Set();
+    const seen = new Set();
+    const normalizados = [];
 
-    return (Array.isArray(estudiantes) ? estudiantes : []).map(estudiante => {
-        if (estudiante.id) return estudiante;
+    (Array.isArray(estudiantes) ? estudiantes : []).forEach(estudiante => {
+        if (!estudiante || typeof estudiante !== 'object') return;
 
-        const matchIndex = guardados.findIndex((item, index) =>
-            !usados.has(index) &&
-            item.nombre === estudiante.nombre &&
-            item.grado === estudiante.grado &&
-            item.seccion === estudiante.seccion
-        );
+        const identidad = estudiante.id
+            ? `id:${estudiante.id}`
+            : `${estudiante.nombre}|${estudiante.grado}|${estudiante.seccion}`;
+        if (seen.has(identidad)) return;
 
-        if (matchIndex >= 0) {
-            usados.add(matchIndex);
-            return {
-                ...estudiante,
-                id: guardados[matchIndex].id
-            };
+        let id = estudiante.id;
+        if (!id) {
+            const coincidencia = guardados.find(item =>
+                item.nombre === estudiante.nombre &&
+                item.grado === estudiante.grado &&
+                item.seccion === estudiante.seccion
+            );
+            if (coincidencia) {
+                id = coincidencia.id;
+            }
         }
 
-        return {
+        const estudianteNormalizado = {
             ...estudiante,
-            id: generarIdEstudiante()
+            id: id || generarIdEstudiante()
         };
+
+        seen.add(`id:${estudianteNormalizado.id}`);
+        normalizados.push(estudianteNormalizado);
     });
+
+    return normalizados;
 }
 
 function renderizarEstudiantesEnDocente(estudiantes) {
