@@ -23,7 +23,6 @@ let temporizadorTotal = null;
 
 let retoActivo = null; // Información de la pregunta actual
 let carrito = []; // Items seleccionados
-let montoColocadoPago = 0;
 let totalAciertos = 0;
 let channelSync = null;
 let servidorWiFi = '';
@@ -590,7 +589,6 @@ function actualizarEstudianteEnLobby(estudianteObj) {
 
 function obtenerEstudiantesDeSala(codigo) {
     const estudiantes = [];
-    const vistos = new Set();
     const fuentes = [localStorage, sessionStorage];
 
     fuentes.forEach(storage => {
@@ -599,13 +597,7 @@ function obtenerEstudiantesDeSala(codigo) {
                 const clave = storage.key(i);
                 if (clave && clave.startsWith(`estudiante_${codigo}_`)) {
                     try {
-                        const estudiante = JSON.parse(storage.getItem(clave));
-                        if (!estudiante || typeof estudiante !== 'object') continue;
-
-                        const clavePerfil = `${estudiante.nombre}|${estudiante.grado}|${estudiante.seccion}`;
-                        if (vistos.has(clavePerfil)) continue;
-                        vistos.add(clavePerfil);
-                        estudiantes.push(estudiante);
+                        estudiantes.push(JSON.parse(storage.getItem(clave)));
                     } catch (e) {}
                 }
             }
@@ -870,7 +862,7 @@ function crearSalaJuego() {
     productosConPrecios = productosBase.map(p => {
         // Precios enteros o con decimales sencillos (.50) para primaria
         const precioDecimales = Math.random() > 0.5 ? 0.00 : 0.50;
-        const precioEntero = Math.floor(Math.random() * 100) + 1; // S/1 a S/100
+        const precioEntero = Math.floor(Math.random() * 8) + 1; // S/1 a S/8
         return {
             ...p,
             precio: parseFloat((precioEntero + precioDecimales).toFixed(2))
@@ -984,24 +976,17 @@ async function unirseASalaEstudiante() {
     seccionEstudiante = seccion;
     productosConPrecios = sala.precios;
 
-    const estudiantesExistentes = obtenerEstudiantesDeSala(codigo);
-    const estudianteDuplicado = estudiantesExistentes.find(est =>
-        est.nombre === nombreEstudiante &&
-        est.grado === gradoEstudiante &&
-        est.seccion === seccionEstudiante
-    );
-
-    miEstudianteId = estudianteDuplicado?.id || generarIdEstudiante();
+    miEstudianteId = generarIdEstudiante();
     const miPerfil = {
         id: miEstudianteId,
         nombre: nombreEstudiante,
         grado: gradoEstudiante,
         seccion: seccionEstudiante,
-        score: estudianteDuplicado?.score || 0,
-        nivel: estudianteDuplicado?.nivel || 1,
-        ronda: estudianteDuplicado?.ronda || 0,
-        errores: estudianteDuplicado?.errores || 0,
-        tiempo: estudianteDuplicado?.tiempo || 0,
+        score: 0,
+        nivel: 1,
+        ronda: 0,
+        errores: 0,
+        tiempo: 0,
         activo: true
     };
 
@@ -1336,7 +1321,7 @@ function generarRetoMatematico(nivel, problemaIndex = 1) {
     const tiempoAsignado = Math.max(30, tiempoBase - Math.floor((rondaActual - 1) / 8));
 
     return {
-        descripcion: `Problema ${problemaIndex}: compra ${producto.emoji} ${producto.nombre}.`,
+        descripcion: `Problema ${problemaIndex}: compra ${producto.emoji} ${producto.nombre}. Solo elige el producto correcto.`,
         tiempo: tiempoAsignado,
         evaluar: (car) => {
             const tieneProducto = car.some(i => i.id === producto.id && i.cant >= 1);
@@ -1377,9 +1362,7 @@ function renderizarCarrito() {
 
     if (carrito.length === 0) {
         listDOM.innerHTML = `<p class="empty-cart-msg">El carrito está vacío</p>`;
-        montoColocadoPago = 0;
         actualizarTotalesCarrito(0);
-        actualizarPagoTerminal(0);
         actualizarSeleccionado();
         return;
     }
@@ -1397,14 +1380,8 @@ function renderizarCarrito() {
     `;
     listDOM.appendChild(row);
 
-    montoColocadoPago = 0;
     actualizarTotalesCarrito(itemTotal);
-    actualizarPagoTerminal(itemTotal);
     actualizarSeleccionado();
-}
-
-function obtenerTotalCarrito() {
-    return carrito.reduce((suma, item) => suma + item.precio * item.cant, 0);
 }
 
 function actualizarTotalesCarrito(subtotal) {
@@ -1418,29 +1395,6 @@ function actualizarTotalesCarrito(subtotal) {
     document.getElementById('cart-subtotal').innerText = `S/ ${subtotal.toFixed(2)}`;
     document.getElementById('cart-descuento').innerText = `S/ 0.00`;
     document.getElementById('cart-total').innerText = `S/ ${total.toFixed(2)}`;
-    actualizarPagoTerminal(total);
-}
-
-function actualizarPagoTerminal(total) {
-    const totalDue = document.getElementById('payment-total-due');
-    const inserted = document.getElementById('payment-amount-inserted');
-    const change = document.getElementById('payment-change');
-    const button = document.getElementById('btn-confirmar-pago');
-
-    if (totalDue) totalDue.innerText = `S/ ${total.toFixed(2)}`;
-    if (inserted) inserted.innerText = `S/ ${montoColocadoPago.toFixed(2)}`;
-    if (change) change.innerText = `S/ ${Math.max(0, montoColocadoPago - total).toFixed(2)}`;
-    if (button) button.disabled = total <= 0 || montoColocadoPago < total;
-}
-
-function agregarPago(valor) {
-    montoColocadoPago = parseFloat((montoColocadoPago + valor).toFixed(2));
-    actualizarPagoTerminal(obtenerTotalCarrito());
-}
-
-function resetPago() {
-    montoColocadoPago = 0;
-    actualizarPagoTerminal(obtenerTotalCarrito());
 }
 
 
@@ -1460,18 +1414,12 @@ function actualizarSeleccionado() {
 function procesarPagoReto() {
     if (!retoActivo) return;
 
-    const total = obtenerTotalCarrito();
-    if (montoColocadoPago < total) {
-        mostrarNotificacion('Debes pagar con monedas o billetes antes de confirmar.', 'warning');
-        return;
-    }
-
     const resultado = retoActivo.evaluar(carrito);
 
     if (resultado.ok) {
         totalAciertos++;
         sonarEfecto('correcto');
-        mostrarNotificacion('¡Excelente! Has elegido el producto correcto.', 'success');
+        mostrarNotificacion('¡Excelente compra! El cajero validó tu pago con éxito.', 'success');
         puntajeActual += 15;
         
         // Subir de nivel de forma lógica cada 30 puntos
@@ -1513,23 +1461,6 @@ function procesarPagoReto() {
  */
 function procesarYMostrarResultados() {
     mostrarPantalla('pantalla-resultados');
-
-    const studentMessage = document.getElementById('student-finish-message');
-    const teacherSummary = document.getElementById('teacher-finish-summary');
-    const podium = document.getElementById('podium');
-    const tablaContainer = document.getElementById('tabla-resultados-container');
-
-    if (miRol === 'docente') {
-        studentMessage.style.display = 'none';
-        teacherSummary.style.display = '';
-        podium.style.display = '';
-        tablaContainer.style.display = '';
-    } else {
-        studentMessage.style.display = '';
-        teacherSummary.style.display = 'none';
-        podium.style.display = 'none';
-        tablaContainer.style.display = 'none';
-    }
 
     const estudiantes = obtenerEstudiantesDeSala(codigoSalaActual);
     
