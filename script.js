@@ -15,7 +15,7 @@ let miEstudianteId = '';
 // Variables de juego (Estudiante)
 let puntajeActual = 0;
 let nivelActual = 1;
-let tiempoRestanteReto = 17;
+let tiempoRestanteReto = 30;
 let totalErrores = 0;
 let tiempoTotalJugado = 0;
 let temporizadorReto = null;
@@ -1367,7 +1367,7 @@ function crearNuevoReto() {
 
 function actualizarBarraTiempo() {
     const fill = document.getElementById('timer-bar');
-    const pct = (tiempoRestanteReto / 17) * 100;
+    const pct = (tiempoRestanteReto / 30) * 100;
     fill.style.width = `${pct}%`;
     if (pct < 30) {
         fill.style.backgroundColor = 'var(--red-kid)';
@@ -1397,7 +1397,7 @@ function generarRetoMatematico(nivel, problemaIndex = 1) {
 
     const nombresProductos = productosElegidos.map(p => `${p.emoji} ${p.nombre}`);
     const descripcion = `Problema ${problemaIndex}: compra ${count} productos: ${nombresProductos.join(', ')}.`;
-    const tiempoAsignado = 17;
+    const tiempoAsignado = 30;
 
     return {
         descripcion,
