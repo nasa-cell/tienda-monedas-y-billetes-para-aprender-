@@ -1208,7 +1208,6 @@ function actualizarPanelSeguimientoDocente(estudiantes) {
                 </div>
                 <small>${rondaActualEst}/${totalRondasObjetivo} problemas</small>
             </td>
-            <td>${est.tiempo}s</td>
             <td style="color:var(--red-kid);">${est.errores}</td>
             <td><span class="counter-badge" style="background-color: var(--green-kid);">${est.ordenLlegada ? 'Terminado' : 'Jugando'}</span></td>
         `;
