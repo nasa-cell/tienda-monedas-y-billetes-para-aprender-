@@ -1183,14 +1183,13 @@ function actualizarPanelSeguimientoDocente(estudiantes) {
         tbody.innerHTML = `<tr><td colspan="10" class="text-center">Esperando a que entren los alumnos...</td></tr>`;
     }
 
-    let sumaPuntajes = 0;
-    let totalRespuestas = 0;
+    let totalAciertosGlobales = 0;
     let erroresGlobales = 0;
 
     estudiantes.forEach(est => {
-        sumaPuntajes += est.score;
         erroresGlobales += est.errores;
-        totalRespuestas += (est.score / 15); // Estimación matemática de aciertos
+        const aciertosEst = Number(est.aciertos) || Math.round((est.score || 0) / 15);
+        totalAciertosGlobales += aciertosEst;
 
         const rondaActualEst = Math.min(est.ronda || 0, totalRondasObjetivo);
         const progresoPct = Math.round((rondaActualEst / totalRondasObjetivo) * 100);
@@ -1200,7 +1199,7 @@ function actualizarPanelSeguimientoDocente(estudiantes) {
             <td><strong>${est.nombre}</strong></td>
             <td>${est.grado} "${est.seccion}"</td>
             <td>${est.ordenLlegada ? `${est.ordenLlegada}°` : '—'}</td>
-            <td><span class="total-highlight">${est.score} pts</span></td>
+            <td><span class="total-highlight">${aciertosEst}</span></td>
             <td>Nivel ${est.nivel}</td>
             <td class="progress-cell">
                 <div class="progress-track">
@@ -1216,9 +1215,9 @@ function actualizarPanelSeguimientoDocente(estudiantes) {
 
     filtrarTablaDocente();
 
-    const promedio = Math.round(sumaPuntajes / estudiantes.length);
-    document.getElementById('metric-promedio').innerText = `${promedio} pts`;
-    document.getElementById('metric-respuestas').innerText = Math.round(totalRespuestas);
+    const promedio = estudiantes.length ? Math.round(totalAciertosGlobales / estudiantes.length) : 0;
+    document.getElementById('metric-promedio').innerText = `${promedio}`;
+    document.getElementById('metric-respuestas').innerText = totalAciertosGlobales;
     document.getElementById('metric-errores').innerText = erroresGlobales;
 }
 
@@ -1334,6 +1333,7 @@ function finalizarJuegoEstudiante() {
         nivel: nivelActual,
         ronda: rondaActual,
         errores: totalErrores,
+        aciertos: totalAciertos,
         tiempo: tiempoTotalJugado,
         activo: false,
         ordenLlegada
@@ -1381,6 +1381,7 @@ function crearNuevoReto() {
         nivel: nivelActual,
         ronda: rondaActual,
         errores: totalErrores,
+        aciertos: totalAciertos,
         tiempo: tiempoTotalJugado,
         activo: true
     });
@@ -1595,6 +1596,19 @@ function procesarPagoReto() {
         }
         puntajeActual += 15;
         
+        actualizarEstudianteEnLobby({
+            nombre: nombreEstudiante,
+            grado: gradoEstudiante,
+            seccion: seccionEstudiante,
+            score: puntajeActual,
+            nivel: nivelActual,
+            ronda: rondaActual,
+            errores: totalErrores,
+            aciertos: totalAciertos,
+            tiempo: tiempoTotalJugado,
+            activo: true
+        });
+
         // Subir de nivel de forma lógica cada 30 puntos
         if (puntajeActual >= nivelActual * 30 && nivelActual < 8) {
             nivelActual++;
@@ -1669,20 +1683,24 @@ async function procesarYMostrarResultados() {
 
         const totalEstudiantes = estudiantes.length;
         const totalErroresDocente = estudiantes.reduce((sum, est) => sum + (est.errores || 0), 0);
-        const totalPuntosDocente = estudiantes.reduce((sum, est) => sum + (est.score || 0), 0);
-        const promedioPuntos = totalEstudiantes ? Math.round(totalPuntosDocente / totalEstudiantes) : 0;
+        const totalAciertosDocente = estudiantes.reduce((sum, est) => sum + (Number(est.aciertos) || Math.round((est.score || 0) / 15)), 0);
+        const promedioAciertos = totalEstudiantes ? Math.round(totalAciertosDocente / totalEstudiantes) : 0;
 
-        document.getElementById('final-aciertos-teacher').innerText = totalEstudiantes;
+        document.getElementById('final-aciertos-teacher').innerText = totalAciertosDocente;
         document.getElementById('final-errores-teacher').innerText = totalErroresDocente;
-        document.getElementById('final-puntos-teacher').innerText = `${promedioPuntos} pts`;
+        document.getElementById('final-puntos-teacher').innerText = `${promedioAciertos}`;
 
-        estudiantes.sort((a, b) => b.score - a.score);
+        estudiantes.sort((a, b) => {
+            const aAciertos = Number(a.aciertos) || Math.round((a.score || 0) / 15);
+            const bAciertos = Number(b.aciertos) || Math.round((b.score || 0) / 15);
+            return bAciertos - aAciertos || (b.score || 0) - (a.score || 0);
+        });
         document.getElementById('podio-nombre-1').innerText = estudiantes[0] ? estudiantes[0].nombre : 'Vacante';
-        document.getElementById('podio-score-1').innerText = estudiantes[0] ? `${estudiantes[0].score} pts` : '0 pts';
+        document.getElementById('podio-score-1').innerText = estudiantes[0] ? `${Number(estudiantes[0].aciertos) || Math.round((estudiantes[0].score || 0) / 15)} aciertos` : '0 aciertos';
         document.getElementById('podio-nombre-2').innerText = estudiantes[1] ? estudiantes[1].nombre : 'Vacante';
-        document.getElementById('podio-score-2').innerText = estudiantes[1] ? `${estudiantes[1].score} pts` : '0 pts';
+        document.getElementById('podio-score-2').innerText = estudiantes[1] ? `${Number(estudiantes[1].aciertos) || Math.round((estudiantes[1].score || 0) / 15)} aciertos` : '0 aciertos';
         document.getElementById('podio-nombre-3').innerText = estudiantes[2] ? estudiantes[2].nombre : 'Vacante';
-        document.getElementById('podio-score-3').innerText = estudiantes[2] ? `${estudiantes[2].score} pts` : '0 pts';
+        document.getElementById('podio-score-3').innerText = estudiantes[2] ? `${Number(estudiantes[2].aciertos) || Math.round((estudiantes[2].score || 0) / 15)} aciertos` : '0 aciertos';
 
         const tbody = document.getElementById('cuerpo-tabla-finales');
         tbody.innerHTML = '';
