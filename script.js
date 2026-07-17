@@ -1317,103 +1317,19 @@ function actualizarBarraTiempo() {
 // --- GENERADOR DE RETOS MATEMÁTICOS ---
 function generarRetoMatematico(nivel, problemaIndex = 1) {
     const semilla = generarSemillaUnica(obtenerSemillaDeJuego(), String(problemaIndex), String(nivel));
-    const cantidadProductos = 2 + (Math.abs(semilla) % 3); // 2, 3 o 4 productos
-    const seleccion = [];
-    let candidato = Math.abs(semilla) % productosConPrecios.length;
+    const producto = productosConPrecios[Math.abs(semilla) % productosConPrecios.length];
+    const precioMeta = parseFloat(producto.precio.toFixed(2));
+    const tiempoBase = 45;
+    const tiempoAsignado = Math.max(30, tiempoBase - Math.floor((rondaActual - 1) / 8));
 
-    while (seleccion.length < cantidadProductos) {
-        const producto = productosConPrecios[candidato % productosConPrecios.length];
-        if (!seleccion.some(p => p.id === producto.id)) {
-            seleccion.push(producto);
+    return {
+        descripcion: `Problema ${problemaIndex}: compra ${producto.emoji} ${producto.nombre} y paga S/ ${precioMeta.toFixed(2)} exactos. Usa las monedas y billetes del cajero.`,
+        tiempo: tiempoAsignado,
+        evaluar: (car, total) => {
+            const tieneProducto = car.some(i => i.id === producto.id && i.cant >= 1);
+            return { ok: tieneProducto && total === precioMeta, msg: `El total correcto era S/ ${precioMeta.toFixed(2)}.` };
         }
-        candidato += 1 + ((problemaIndex + seleccion.length) % 5);
-    }
-
-    const nombres = seleccion.map(p => `${p.emoji} ${p.nombre}`);
-    const listaProductos = nombres.length > 1
-        ? nombres.slice(0, -1).join(', ') + ' y ' + nombres.slice(-1)
-        : nombres[0];
-
-    const sumaBase = seleccion.reduce((total, prod) => total + prod.precio, 0);
-    const incrementoPorRonda = 1 + (rondaActual / totalRondasObjetivo) * 0.35;
-    const precioMeta = parseFloat((Math.round(sumaBase * incrementoPorRonda * 2) / 2).toFixed(2));
-
-    const tiempoBase = 65 - (cantidadProductos - 2) * 8 - Math.floor((rondaActual - 1) / 7) * 3;
-    const tiempoAsignado = Math.max(30, tiempoBase);
-
-    const billetes = [5, 10, 20, 50, 100, 200];
-    const billete = billetes[Math.abs(semilla + 3) % billetes.length];
-    const tipoReto = Math.abs(semilla + problemaIndex) % 7;
-    const cantidadRepetida = 2 + ((Math.abs(semilla + 5) % 3));
-    const descuentoPct = 10 + ((Math.abs(semilla + 9) % 5) * 5);
-
-    switch (tipoReto) {
-        case 0:
-            return {
-                descripcion: `Problema ${problemaIndex}: compra ${listaProductos} y paga S/ ${precioMeta.toFixed(2)} exactos. Usa las monedas y billetes del cajero.`,
-                tiempo: tiempoAsignado,
-                evaluar: (car, total) => ({ ok: total === precioMeta, msg: `El total correcto era S/ ${precioMeta.toFixed(2)}.` })
-            };
-
-        case 1: {
-            const vuelto = parseFloat((billete - precioMeta).toFixed(2));
-            return {
-                descripcion: `Problema ${problemaIndex}: el cliente paga con un billete de S/ ${billete}. Compra ${listaProductos} y devuelve el vuelto correcto: S/ ${vuelto.toFixed(2)}.`,
-                tiempo: tiempoAsignado,
-                evaluar: (car, total) => ({ ok: total === vuelto, msg: `El vuelto correcto era S/ ${vuelto.toFixed(2)}.` })
-            };
-        }
-
-        case 2: {
-            const producto = seleccion[0];
-            const precioRepetido = parseFloat((producto.precio * cantidadRepetida).toFixed(2));
-            return {
-                descripcion: `Problema ${problemaIndex}: lleva ${cantidadRepetida} unidades de ${producto.emoji} ${producto.nombre}. ¿Cuánto pagas?`,
-                tiempo: tiempoAsignado,
-                evaluar: (car, total) => {
-                    const cumple = car.some(i => i.id === producto.id && i.cant === cantidadRepetida);
-                    return { ok: cumple && total === precioRepetido, msg: `El total correcto era S/ ${precioRepetido.toFixed(2)}.` };
-                }
-            };
-        }
-
-        case 3: {
-            const producto = seleccion[0];
-            const precioConDescuento = parseFloat((producto.precio * (1 - descuentoPct / 100)).toFixed(2));
-            return {
-                descripcion: `Problema ${problemaIndex}: la ${producto.emoji} ${producto.nombre} tiene ${descuentoPct}% de descuento. Compra 1 unidad y paga S/ ${precioConDescuento.toFixed(2)}.`,
-                tiempo: tiempoAsignado,
-                evaluar: (car, total) => ({ ok: car.some(i => i.id === producto.id && i.cant === 1) && total === precioConDescuento, msg: `El precio con descuento era S/ ${precioConDescuento.toFixed(2)}.` })
-            };
-        }
-
-        case 4: {
-            const precioCombo = parseFloat((precioMeta + 1.5).toFixed(2));
-            return {
-                descripcion: `Problema ${problemaIndex}: arma un combo con ${listaProductos} y paga S/ ${precioCombo.toFixed(2)}.`,
-                tiempo: tiempoAsignado,
-                evaluar: (car, total) => ({ ok: total === precioCombo, msg: `El combo costaba S/ ${precioCombo.toFixed(2)}.` })
-            };
-        }
-
-        case 5: {
-            const totalBillete = Math.max(billete, precioMeta + 5);
-            const vuelto = parseFloat((totalBillete - precioMeta).toFixed(2));
-            return {
-                descripcion: `Problema ${problemaIndex}: el cliente paga con S/ ${totalBillete}. Compra ${listaProductos} y devuelve S/ ${vuelto.toFixed(2)} de vuelto.`,
-                tiempo: tiempoAsignado,
-                evaluar: (car, total) => ({ ok: total === vuelto, msg: `El vuelto correcto era S/ ${vuelto.toFixed(2)}.` })
-            };
-        }
-
-        default: {
-            return {
-                descripcion: `Problema ${problemaIndex}: revisa ${listaProductos} y paga S/ ${precioMeta.toFixed(2)} exactos con monedas y billetes reales.`,
-                tiempo: tiempoAsignado,
-                evaluar: (car, total) => ({ ok: total === precioMeta, msg: `El total correcto era S/ ${precioMeta.toFixed(2)}.` })
-            };
-        }
-    }
+    };
 }
 
 
