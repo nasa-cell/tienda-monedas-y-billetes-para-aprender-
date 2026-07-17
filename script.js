@@ -845,7 +845,6 @@ async function unirseASalaEstudiante() {
         localStorage.setItem(`sala_reinicio_${codigo}`, String(sala.reinicioId));
     }
 
-    const sala = JSON.parse(salaRaw);
     if (sala.estado !== 'espera') {
         mostrarNotificacion('El juego ya comenzó o ya fue terminado.', 'warning');
         return;
