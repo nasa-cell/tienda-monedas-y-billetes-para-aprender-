@@ -918,7 +918,12 @@ function activarSincronizacionReactiva() {
         if (!salaRaw) return;
 
         const sala = salaRemota || JSON.parse(salaRaw);
-        if (miRol === 'estudiante' && sala?.reinicioId) {
+        const studentInRoom = miRol === 'estudiante' && (
+            document.getElementById('pantalla-espera-estudiante')?.classList.contains('active') ||
+            document.getElementById('pantalla-juego')?.classList.contains('active')
+        );
+
+        if (studentInRoom && sala?.reinicioId) {
             const ultimaReinicio = Number(localStorage.getItem(`sala_reinicio_${codigoSalaActual}`) || '0');
             if (sala.reinicioId > ultimaReinicio) {
                 localStorage.setItem(`sala_reinicio_${codigoSalaActual}`, String(sala.reinicioId));
