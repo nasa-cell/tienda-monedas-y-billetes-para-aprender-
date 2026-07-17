@@ -501,13 +501,14 @@ async function sincronizarEstadoConServidor() {
     const salaPersistida = leerDatoPersistente(`sala_${codigoSalaActual}`);
     const salaLocal = salaPersistida ? JSON.parse(salaPersistida) : null;
     const estudiantes = obtenerEstudiantesDeSala(codigoSalaActual);
+    const estudiantesNormalizados = normalizarEstudiantesConId(estudiantes, codigoSalaActual);
 
     const payload = {
         codigo: codigoSalaActual,
         estado: salaLocal?.estado || 'espera',
         precios: salaLocal?.precios || productosConPrecios,
-        estudiantes: estudiantes.map(estudiante => ({
-            id: estudiante.id || generarIdEstudiante(),
+        estudiantes: estudiantesNormalizados.map(estudiante => ({
+            id: estudiante.id,
             nombre: estudiante.nombre,
             grado: estudiante.grado,
             seccion: estudiante.seccion,
@@ -531,8 +532,8 @@ async function sincronizarEstadoConServidor() {
                     estado: salaLocal?.estado || 'espera',
                     precios: salaLocal?.precios || productosConPrecios
                 },
-                students: estudiantes.map(estudiante => ({
-                    id: estudiante.id || generarIdEstudiante(),
+                students: estudiantesNormalizados.map(estudiante => ({
+                    id: estudiante.id,
                     nombre: estudiante.nombre,
                     grado: estudiante.grado,
                     seccion: estudiante.seccion,
@@ -611,6 +612,35 @@ function obtenerEstudiantesDeSala(codigo) {
     return estudiantes;
 }
 
+function normalizarEstudiantesConId(estudiantes, codigo) {
+    const guardados = obtenerEstudiantesDeSala(codigo);
+    const usados = new Set();
+
+    return (Array.isArray(estudiantes) ? estudiantes : []).map(estudiante => {
+        if (estudiante.id) return estudiante;
+
+        const matchIndex = guardados.findIndex((item, index) =>
+            !usados.has(index) &&
+            item.nombre === estudiante.nombre &&
+            item.grado === estudiante.grado &&
+            item.seccion === estudiante.seccion
+        );
+
+        if (matchIndex >= 0) {
+            usados.add(matchIndex);
+            return {
+                ...estudiante,
+                id: guardados[matchIndex].id
+            };
+        }
+
+        return {
+            ...estudiante,
+            id: generarIdEstudiante()
+        };
+    });
+}
+
 function renderizarEstudiantesEnDocente(estudiantes) {
     const contador = document.getElementById('lobby-contador-docente');
     const lista = document.getElementById('lobby-lista-docente');
@@ -650,7 +680,8 @@ function calcularSiguienteOrdenLlegada() {
 }
 
 function actualizarVistaDesdeSala(sala) {
-    const estudiantes = Array.isArray(sala?.estudiantes) ? sala.estudiantes : obtenerEstudiantesDeSala(codigoSalaActual);
+    const estudiantesRaw = Array.isArray(sala?.estudiantes) ? sala.estudiantes : obtenerEstudiantesDeSala(codigoSalaActual);
+    const estudiantes = normalizarEstudiantesConId(estudiantesRaw, codigoSalaActual);
 
     if (miRol === 'docente') {
         if (document.getElementById('pantalla-espera-docente').classList.contains('active')) {
@@ -694,6 +725,7 @@ function eliminarEstudianteDocente(identificador) {
 
     const clavePrefijo = `estudiante_${codigoSalaActual}_`;
     let eliminadoLocal = false;
+    let encontradoPorId = false;
 
     [localStorage, sessionStorage].forEach(storage => {
         try {
@@ -706,11 +738,11 @@ function eliminarEstudianteDocente(identificador) {
                     const valor = storage.getItem(clave);
                     if (!valor) continue;
                     const estudiante = JSON.parse(valor);
-                    if (estudiante && (
-                        (estudiante.id && estudiante.id === identificador) ||
-                        (!estudiante.id && estudiante.nombre === identificador)
-                    )) {
+                    if (!estudiante) continue;
+
+                    if (estudiante.id && estudiante.id === identificador) {
                         clavesAEliminar.push(clave);
+                        encontradoPorId = true;
                     }
                 } catch (e) {
                     // ignorar valores no JSON
@@ -726,16 +758,50 @@ function eliminarEstudianteDocente(identificador) {
         }
     });
 
+    if (!encontradoPorId) {
+        [localStorage, sessionStorage].some(storage => {
+            try {
+                for (let i = 0; i < storage.length; i++) {
+                    const clave = storage.key(i);
+                    if (!clave || !clave.startsWith(clavePrefijo)) continue;
+
+                    try {
+                        const valor = storage.getItem(clave);
+                        if (!valor) continue;
+                        const estudiante = JSON.parse(valor);
+                        if (estudiante && !estudiante.id && estudiante.nombre === identificador) {
+                            storage.removeItem(clave);
+                            eliminadoLocal = true;
+                            return true;
+                        }
+                    } catch (e) {
+                        // ignorar valores no JSON
+                    }
+                }
+            } catch (e) {
+                // ignorar errores de almacenamiento
+            }
+            return false;
+        });
+    }
+
     const salaRaw = leerDatoPersistente(`sala_${codigoSalaActual}`);
     let sala = salaRaw ? JSON.parse(salaRaw) : null;
     const estudiantesSala = Array.isArray(sala?.estudiantes)
         ? sala.estudiantes
         : obtenerEstudiantesDeSala(codigoSalaActual);
-    const estudiantesActualizados = estudiantesSala.filter(est => {
-        if (est.id) return est.id !== identificador;
-        return est.nombre !== identificador;
-    });
-    const eliminadoEnSala = estudiantesActualizados.length < estudiantesSala.length;
+    let eliminadoEnSala = false;
+    const estudiantesActualizados = [];
+
+    for (const est of estudiantesSala) {
+        if (!eliminadoEnSala) {
+            if ((est.id && est.id === identificador) || (!est.id && !encontradoPorId && est.nombre === identificador)) {
+                eliminadoEnSala = true;
+                continue;
+            }
+        }
+        estudiantesActualizados.push(est);
+    }
 
     if (eliminadoEnSala) {
         const salaActualizada = {
@@ -977,25 +1043,24 @@ function activarSincronizacionReactiva() {
         if (!salaRaw) return;
 
         const sala = salaRemota || JSON.parse(salaRaw);
-        const estudiantes = Array.isArray(sala?.estudiantes) && sala.estudiantes.length > 0
+        const estudiantesRaw = Array.isArray(sala?.estudiantes) && sala.estudiantes.length > 0
             ? sala.estudiantes
             : obtenerEstudiantesDeSala(codigoSalaActual);
+        const estudiantes = normalizarEstudiantesConId(estudiantesRaw, codigoSalaActual);
 
         // --- VISTA DOCENTE ---
         actualizarVistaDesdeSala(sala);
 
         if (miRol === 'docente') {
             if (document.getElementById('pantalla-control-docente').classList.contains('active')) {
-                const estudiantesControl = Array.isArray(sala?.estudiantes) ? sala.estudiantes : estudiantes;
-                actualizarPanelSeguimientoDocente(estudiantesControl);
+                actualizarPanelSeguimientoDocente(estudiantes);
             }
         }
 
         // --- VISTA ESTUDIANTE ---
         if (miRol === 'estudiante') {
             if (document.getElementById('pantalla-espera-estudiante').classList.contains('active')) {
-                const estudiantesActuales = Array.isArray(sala?.estudiantes) ? sala.estudiantes : estudiantes;
-                actualizarContadorEstudiante(estudiantesActuales);
+                actualizarContadorEstudiante(estudiantes);
 
                 if (sala.estado === 'jugando') {
                     comenzarDesafiosEstudiante();
