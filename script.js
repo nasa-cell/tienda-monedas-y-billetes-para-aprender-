@@ -890,11 +890,18 @@ function validarAccesoDocente() {
     }
 }
 
+function generarCodigoSala() {
+    const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const numeros = '0123456789';
+    const parteLetra = Array.from({ length: 4 }, () => letras.charAt(Math.floor(Math.random() * letras.length))).join('');
+    const parteNumero = Array.from({ length: 4 }, () => numeros.charAt(Math.floor(Math.random() * numeros.length))).join('');
+    return `${parteLetra}${parteNumero}`;
+}
+
 function crearSalaJuego() {
     sonarEfecto('click');
 
-    const codigoFijo = '2026COLE';
-    codigoSalaActual = codigoFijo;
+    codigoSalaActual = generarCodigoSala();
 
     // Generar Precios Aleatorios para la partida
     productosConPrecios = productosBase.map(p => {
