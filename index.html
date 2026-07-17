@@ -182,10 +182,28 @@
                     </div>
 
                     <div class="payment-terminal">
-                        <h4>�️ Selecciona el producto correcto</h4>
+                        <h4>�️ Pago con monedas y billetes</h4>
                         <div class="payment-status">
                             <div>Seleccionado: <strong id="cart-selected-item">Ninguno</strong></div>
-                            <button class="btn btn-green btn-block" onclick="procesarPagoReto()">✅ Confirmar</button>
+                        </div>
+                        <div class="cash-selector">
+                            <button type="button" class="coin" onclick="agregarPago(0.50)">S/ 0.50</button>
+                            <button type="button" class="coin" onclick="agregarPago(1.00)">S/ 1.00</button>
+                            <button type="button" class="coin" onclick="agregarPago(2.00)">S/ 2.00</button>
+                            <button type="button" class="bill" onclick="agregarPago(5.00)">S/ 5.00</button>
+                            <button type="button" class="bill" onclick="agregarPago(10.00)">S/ 10.00</button>
+                            <button type="button" class="bill bill-large" onclick="agregarPago(20.00)">S/ 20.00</button>
+                            <button type="button" class="bill bill-large" onclick="agregarPago(50.00)">S/ 50.00</button>
+                            <button type="button" class="bill bill-large" onclick="agregarPago(100.00)">S/ 100.00</button>
+                        </div>
+                        <div class="payment-summary">
+                            <div>Total a pagar: <strong id="payment-total-due">S/ 0.00</strong></div>
+                            <div>Pagado: <strong id="payment-amount-inserted">S/ 0.00</strong></div>
+                            <div>Cambio: <strong id="payment-change">S/ 0.00</strong></div>
+                        </div>
+                        <div class="payment-actions">
+                            <button class="btn btn-yellow btn-sm" type="button" onclick="resetPago()">♻️ Reset</button>
+                            <button id="btn-confirmar-pago" class="btn btn-green btn-block" onclick="procesarPagoReto()">✅ Confirmar</button>
                         </div>
                     </div>
                 </div>
