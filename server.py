@@ -116,7 +116,23 @@ class Handler(BaseHTTPRequestHandler):
         if data.get("room"):
             room.update(data["room"])
         if "students" in data and isinstance(data["students"], list):
-            room["students"] = data["students"]
+            merged_students = {}
+            def key_for_student(est):
+                if not isinstance(est, dict):
+                    return None
+                if est.get("id"):
+                    return f"id:{est['id']}"
+                return f"{est.get('nombre')}|{est.get('grado')}|{est.get('seccion')}"
+
+            for est in room.get("students", []):
+                clave = key_for_student(est)
+                if clave:
+                    merged_students[clave] = est
+            for est in data["students"]:
+                clave = key_for_student(est)
+                if clave:
+                    merged_students[clave] = est
+            room["students"] = list(merged_students.values())
 
         rooms[code] = room
         save_state(state)

@@ -95,7 +95,18 @@ const server = http.createServer((req, res) => {
             Object.assign(existing, sala);
           }
           if (Array.isArray(estudiantes)) {
-            existing.estudiantes = estudiantes;
+            const merged = new Map();
+            const crearClave = (est) => est.id ? `id:${est.id}` : `${est.nombre}|${est.grado}|${est.seccion}`;
+
+            (existing.estudiantes || []).forEach(est => {
+              const key = crearClave(est);
+              merged.set(key, est);
+            });
+            estudiantes.forEach(est => {
+              const key = crearClave(est);
+              merged.set(key, est);
+            });
+            existing.estudiantes = Array.from(merged.values());
           }
           salas.set(codigo, existing);
         }
