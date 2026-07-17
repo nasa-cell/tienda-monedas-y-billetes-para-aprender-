@@ -1302,12 +1302,15 @@ function inicializarTiendaUI() {
 
 function actualizarPreciosPorRonda() {
     const semilla = obtenerSemillaDeJuego();
+    const denominaciones = [0.5, 1, 2, 5, 10, 20, 50, 100];
 
     productosConPrecios = productosBase.map((producto, index) => {
-        const baseAleatoria = ((semilla + index * 17) % 8) + 1;
         const ajusteRonda = 1 + (rondaActual / totalRondasObjetivo) * 0.45;
-        const precioRaw = baseAleatoria + (index % 4) * 0.5 + (rondaActual * 0.25);
-        const precioFinal = parseFloat((Math.round(precioRaw * ajusteRonda * 2) / 2).toFixed(2));
+        const precioBase = ((semilla + index * 19) % 20) + 1;
+        const denom = denominaciones[Math.abs(semilla + index * 7 + rondaActual) % denominaciones.length];
+        const factor = 1 + (Math.abs(semilla + index * 5 + rondaActual) % 4);
+        const precioRaw = Math.min(precioBase * factor * ajusteRonda, 100);
+        const precioFinal = parseFloat((Math.max(denom, Math.round(precioRaw / denom) * denom)).toFixed(2));
         return {
             ...producto,
             precio: precioFinal
@@ -1398,9 +1401,8 @@ function actualizarBarraTiempo() {
 // --- GENERADOR DE RETOS MATEMÁTICOS ---
 function generarRetoMatematico(nivel, problemaIndex = 1) {
     const semilla = generarSemillaUnica(obtenerSemillaDeJuego(), String(problemaIndex), String(nivel));
-    const ciclo = (problemaIndex - 1) % 3;
-    const cuentaProductos = [3, 4, 6][ciclo]; // 3 en el primer reto, 4 en el segundo, 6 en el tercero
-    const count = cuentaProductos;
+    const cuentaProductos = 5 + (Math.abs(semilla) % 8); // entre 5 y 12 productos
+    const count = Math.min(cuentaProductos, productosConPrecios.length);
     const productosElegidos = [];
     const indicesUsados = new Set();
     let valorSemilla = Math.abs(semilla);
@@ -1453,8 +1455,8 @@ function agregarAlCarrito(id) {
     if (existente) {
         existente.cant += 1;
     } else {
-        if (carrito.length >= 8) {
-            mostrarNotificacion('Puedes elegir hasta 8 productos en el carrito.', 'warning');
+        if (carrito.length >= 12) {
+            mostrarNotificacion('Puedes elegir hasta 12 productos en el carrito.', 'warning');
             return;
         }
         carrito.push({ ...prod, cant: 1 });
