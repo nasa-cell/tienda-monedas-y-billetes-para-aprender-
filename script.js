@@ -30,7 +30,7 @@ let servidorWiFi = '';
 let ultimoEstadoSala = null;
 let autoSyncActivo = false;
 let rondaActual = 0;
-let totalRondasObjetivo = 25;
+let totalRondasObjetivo = 30;
 let ordenLlegadaActual = 1;
 
 let resultBgCanvas = null;
@@ -1379,17 +1379,43 @@ function actualizarBarraTiempo() {
 // --- GENERADOR DE RETOS MATEMÁTICOS ---
 function generarRetoMatematico(nivel, problemaIndex = 1) {
     const semilla = generarSemillaUnica(obtenerSemillaDeJuego(), String(problemaIndex), String(nivel));
-    const producto = productosConPrecios[Math.abs(semilla) % productosConPrecios.length];
-    const precioMeta = parseFloat(producto.precio.toFixed(2));
+    const ciclo = (problemaIndex - 1) % 3;
+    const cuentaProductos = [3, 4, 6][ciclo]; // 3 en el primer reto, 4 en el segundo, 6 en el tercero
+    const count = cuentaProductos;
+    const productosElegidos = [];
+    const indicesUsados = new Set();
+    let valorSemilla = Math.abs(semilla);
+
+    while (productosElegidos.length < count && productosElegidos.length < productosConPrecios.length) {
+        const index = valorSemilla % productosConPrecios.length;
+        if (!indicesUsados.has(index)) {
+            indicesUsados.add(index);
+            productosElegidos.push(productosConPrecios[index]);
+        }
+        valorSemilla = Math.floor(valorSemilla / 2) + 7;
+    }
+
+    const nombresProductos = productosElegidos.map(p => `${p.emoji} ${p.nombre}`);
+    const descripcion = `Problema ${problemaIndex}: compra ${count} productos: ${nombresProductos.join(', ')}.`;
     const tiempoBase = 45;
     const tiempoAsignado = Math.max(30, tiempoBase - Math.floor((rondaActual - 1) / 8));
 
     return {
-        descripcion: `Problema ${problemaIndex}: compra ${producto.emoji} ${producto.nombre}. Solo elige el producto correcto.`,
+        descripcion,
         tiempo: tiempoAsignado,
         evaluar: (car) => {
-            const tieneProducto = car.some(i => i.id === producto.id && i.cant >= 1);
-            return { ok: tieneProducto, msg: `Debes elegir el producto ${producto.emoji} ${producto.nombre}.` };
+            const cartIds = car.map(item => item.id);
+            const faltantes = productosElegidos.filter(prod => !cartIds.includes(prod.id));
+            const extras = car.filter(item => !productosElegidos.some(prod => prod.id === item.id));
+            if (faltantes.length > 0) {
+                const faltantesNombres = faltantes.map(p => `${p.emoji} ${p.nombre}`).join(', ');
+                return { ok: false, msg: `Faltan estos productos: ${faltantesNombres}.` };
+            }
+            if (extras.length > 0) {
+                const extrasNombres = extras.map(p => `${p.emoji} ${p.nombre}`).join(', ');
+                return { ok: false, msg: `Elimina estos productos extra: ${extrasNombres}.` };
+            }
+            return { ok: true, msg: '' };
         }
     };
 }
@@ -1409,8 +1435,8 @@ function agregarAlCarrito(id) {
     if (existente) {
         existente.cant += 1;
     } else {
-        if (carrito.length >= 3) {
-            mostrarNotificacion('Puedes elegir hasta 3 productos en el carrito.', 'warning');
+        if (carrito.length >= 8) {
+            mostrarNotificacion('Puedes elegir hasta 8 productos en el carrito.', 'warning');
             return;
         }
         carrito.push({ ...prod, cant: 1 });
@@ -1580,10 +1606,29 @@ function procesarPagoReto() {
  * PROCESAMIENTO Y TABLA DE RESULTADOS FINALES
  * ==========================================
  */
-function procesarYMostrarResultados() {
+async function procesarYMostrarResultados() {
     mostrarPantalla('pantalla-resultados');
 
-    const estudiantes = obtenerEstudiantesDeSala(codigoSalaActual);
+    let estudiantes = obtenerEstudiantesDeSala(codigoSalaActual);
+    const base = obtenerBaseServidor();
+    if (miRol === 'docente' && base) {
+        try {
+            const respuesta = await fetch(`${base}/api/state/${codigoSalaActual}`);
+            if (respuesta.ok) {
+                const datos = await respuesta.json();
+                if (datos?.sala?.estudiantes) {
+                    estudiantes = normalizarEstudiantesConId(datos.sala.estudiantes, codigoSalaActual);
+                }
+            }
+        } catch (error) {
+            if (ultimoEstadoSala?.codigo === codigoSalaActual && Array.isArray(ultimoEstadoSala.estudiantes)) {
+                estudiantes = normalizarEstudiantesConId(ultimoEstadoSala.estudiantes, codigoSalaActual);
+            }
+        }
+    } else if (miRol === 'docente' && ultimoEstadoSala?.codigo === codigoSalaActual && Array.isArray(ultimoEstadoSala.estudiantes)) {
+        estudiantes = normalizarEstudiantesConId(ultimoEstadoSala.estudiantes, codigoSalaActual);
+    }
+
     const studentMessage = document.getElementById('student-finish-message');
     const teacherSummary = document.getElementById('teacher-finish-summary');
     const podium = document.getElementById('result-podium');
