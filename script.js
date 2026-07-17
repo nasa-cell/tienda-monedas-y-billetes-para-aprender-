@@ -617,6 +617,34 @@ function obtenerEstudiantesDeSala(codigo) {
     return estudiantes;
 }
 
+function eliminarEstudiantesDuplicadosPorIdentidad(codigo, nombre, grado, seccion, keepId = null) {
+    if (!codigo || !nombre || !grado || !seccion) return;
+    const prefijo = `estudiante_${codigo}_`;
+    const ident = `${nombre}|${grado}|${seccion}`;
+
+    [localStorage, sessionStorage].forEach(storage => {
+        try {
+            const clavesAEliminar = [];
+            for (let i = 0; i < storage.length; i++) {
+                const clave = storage.key(i);
+                if (!clave || !clave.startsWith(prefijo)) continue;
+
+                try {
+                    const estudiante = JSON.parse(storage.getItem(clave));
+                    if (!estudiante || typeof estudiante !== 'object') continue;
+                    const estudianteIdent = `${estudiante.nombre}|${estudiante.grado}|${estudiante.seccion}`;
+                    if (estudianteIdent === ident && estudiante.id !== keepId) {
+                        clavesAEliminar.push(clave);
+                    }
+                } catch (e) {
+                    continue;
+                }
+            }
+            clavesAEliminar.forEach(clave => storage.removeItem(clave));
+        } catch (e) {}
+    });
+}
+
 function normalizarEstudiantesConId(estudiantes, codigo) {
     const guardados = obtenerEstudiantesDeSala(codigo);
     const usados = new Set();
@@ -996,6 +1024,8 @@ async function unirseASalaEstudiante() {
     );
 
     miEstudianteId = estudianteDuplicado?.id || generarIdEstudiante();
+    eliminarEstudiantesDuplicadosPorIdentidad(codigo, nombreEstudiante, gradoEstudiante, seccionEstudiante, miEstudianteId);
+
     const miPerfil = {
         id: miEstudianteId,
         nombre: nombreEstudiante,
