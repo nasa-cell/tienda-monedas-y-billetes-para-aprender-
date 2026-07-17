@@ -507,6 +507,7 @@ async function sincronizarEstadoConServidor() {
         estado: salaLocal?.estado || 'espera',
         precios: salaLocal?.precios || productosConPrecios,
         estudiantes: estudiantes.map(estudiante => ({
+            id: estudiante.id || generarIdEstudiante(),
             nombre: estudiante.nombre,
             grado: estudiante.grado,
             seccion: estudiante.seccion,
@@ -531,6 +532,7 @@ async function sincronizarEstadoConServidor() {
                     precios: salaLocal?.precios || productosConPrecios
                 },
                 students: estudiantes.map(estudiante => ({
+                    id: estudiante.id || generarIdEstudiante(),
                     nombre: estudiante.nombre,
                     grado: estudiante.grado,
                     seccion: estudiante.seccion,
@@ -577,7 +579,8 @@ function mostrarNotificacion(mensaje, tipo = 'info', duracion = 2600) {
 }
 
 function actualizarEstudianteEnLobby(estudianteObj) {
-    const estudianteId = estudianteObj.id || generarIdEstudiante();
+    const estudianteId = estudianteObj.id || miEstudianteId || generarIdEstudiante();
+    miEstudianteId = estudianteId;
     const estudianteData = { ...estudianteObj, id: estudianteId };
 
     guardarDatoPersistente(
@@ -725,7 +728,9 @@ function eliminarEstudianteDocente(identificador) {
 
     const salaRaw = leerDatoPersistente(`sala_${codigoSalaActual}`);
     let sala = salaRaw ? JSON.parse(salaRaw) : null;
-    const estudiantesSala = Array.isArray(sala?.estudiantes) ? sala.estudiantes : [];
+    const estudiantesSala = Array.isArray(sala?.estudiantes)
+        ? sala.estudiantes
+        : obtenerEstudiantesDeSala(codigoSalaActual);
     const estudiantesActualizados = estudiantesSala.filter(est => {
         if (est.id) return est.id !== identificador;
         return est.nombre !== identificador;
