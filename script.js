@@ -1518,7 +1518,7 @@ function actualizarPagoTerminal(total) {
     if (totalDue) totalDue.innerText = `S/ ${total.toFixed(2)}`;
     if (inserted) inserted.innerText = `S/ ${montoColocadoPago.toFixed(2)}`;
     if (change) change.innerText = `S/ ${Math.max(0, montoColocadoPago - total).toFixed(2)}`;
-    if (button) button.disabled = total <= 0 || montoColocadoPago < total;
+    if (button) button.disabled = total <= 0;
 }
 
 function agregarPago(valor) {
@@ -1529,6 +1529,10 @@ function agregarPago(valor) {
 function resetPago() {
     montoColocadoPago = 0;
     actualizarPagoTerminal(obtenerTotalCarrito());
+    const button = document.getElementById('btn-confirmar-pago');
+    if (button) {
+        button.disabled = obtenerTotalCarrito() <= 0;
+    }
 }
 
 
