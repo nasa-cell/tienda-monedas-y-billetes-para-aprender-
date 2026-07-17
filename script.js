@@ -32,6 +32,7 @@ let autoSyncActivo = false;
 let rondaActual = 0;
 let totalRondasObjetivo = 30;
 let ordenLlegadaActual = 1;
+let estudiantesFinalizadosNotificados = new Set();
 
 let resultBgCanvas = null;
 let resultBgCtx = null;
@@ -575,6 +576,19 @@ function mostrarNotificacion(mensaje, tipo = 'info', duracion = 2600) {
     }, duracion);
 }
 
+function notificarEstudiantesFinalizados(estudiantes) {
+    if (!Array.isArray(estudiantes)) return;
+
+    estudiantes.forEach(est => {
+        if (!est || est.activo !== false) return;
+        const estudianteId = est.id || `${est.nombre}-${est.grado}-${est.seccion}`;
+        if (estudiantesFinalizadosNotificados.has(estudianteId)) return;
+
+        estudiantesFinalizadosNotificados.add(estudianteId);
+        mostrarNotificacion(`El estudiante ${est.nombre} finalizó el juego.`, 'success', 4200);
+    });
+}
+
 function actualizarEstudianteEnLobby(estudianteObj) {
     const estudianteId = estudianteObj.id || miEstudianteId || generarIdEstudiante();
     miEstudianteId = estudianteId;
@@ -728,6 +742,7 @@ function actualizarVistaDesdeSala(sala) {
         if (document.getElementById('pantalla-espera-docente').classList.contains('active')) {
             renderizarEstudiantesEnDocente(estudiantes);
         }
+        notificarEstudiantesFinalizados(estudiantes);
     }
 
     if (miRol === 'estudiante') {
@@ -741,6 +756,7 @@ function actualizarVistaDesdeSala(sala) {
 }
 
 function eliminarTodosEstudiantesSala(codigo) {
+    estudiantesFinalizadosNotificados.clear();
     const keysAEliminar = [];
     const fuentes = [localStorage, sessionStorage];
 
@@ -910,6 +926,7 @@ function crearSalaJuego() {
     sonarEfecto('click');
 
     codigoSalaActual = generarCodigoSala();
+    estudiantesFinalizadosNotificados.clear();
 
     // Generar Precios Aleatorios para la partida
     productosConPrecios = productosBase.map(p => {
@@ -1156,6 +1173,7 @@ function filtrarTablaDocente() {
 }
 
 function actualizarPanelSeguimientoDocente(estudiantes) {
+    notificarEstudiantesFinalizados(estudiantes);
     const tbody = document.getElementById('cuerpo-tabla-docente');
     tbody.innerHTML = '';
 
