@@ -495,11 +495,31 @@ input:focus, select:focus {
 .players-grid li {
     background: white;
     border: 3px solid #2C3E50;
-    padding: 10px;
+    padding: 10px 14px;
     border-radius: 50px;
     font-weight: bold;
     text-align: center;
     box-shadow: 0 4px 0px #2C3E50;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.student-remove {
+    border: none;
+    background: var(--red-kid);
+    color: white;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-size: 16px;
+    cursor: pointer;
+    box-shadow: 0 3px 0px #C0392B;
+}
+
+.student-remove:hover {
+    transform: translateY(1px);
 }
 
 /* --- HUD DEL JUEGO --- */

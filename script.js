@@ -590,7 +590,12 @@ function renderizarEstudiantesEnDocente(estudiantes) {
     if (!contador || !lista) return;
 
     contador.innerText = `${estudiantes.length} estudiante${estudiantes.length === 1 ? '' : 's'}`;
-    lista.innerHTML = estudiantes.map(e => `<li>🎈 ${e.nombre}</li>`).join('');
+    lista.innerHTML = estudiantes.map(e => `
+        <li class="student-pill">
+            <span>🎈 ${e.nombre}</span>
+            <button class="student-remove" onclick="eliminarEstudianteDocente(${JSON.stringify(e.nombre)})" title="Eliminar estudiante">✕</button>
+        </li>
+    `).join('');
 }
 
 function actualizarContadorEstudiante(estudiantes) {
