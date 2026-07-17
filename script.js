@@ -10,6 +10,7 @@ let codigoSalaActual = '';
 let nombreEstudiante = '';
 let gradoEstudiante = '';
 let seccionEstudiante = '';
+let miEstudianteId = '';
 
 // Variables de juego (Estudiante)
 let puntajeActual = 0;
@@ -111,6 +112,10 @@ function leerDatoPersistente(clave) {
             return null;
         }
     }
+}
+
+function generarIdEstudiante() {
+    return `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function eliminarDatoPersistente(clave) {
@@ -572,9 +577,12 @@ function mostrarNotificacion(mensaje, tipo = 'info', duracion = 2600) {
 }
 
 function actualizarEstudianteEnLobby(estudianteObj) {
+    const estudianteId = estudianteObj.id || generarIdEstudiante();
+    const estudianteData = { ...estudianteObj, id: estudianteId };
+
     guardarDatoPersistente(
-        `estudiante_${codigoSalaActual}_${estudianteObj.nombre}`,
-        JSON.stringify(estudianteObj)
+        `estudiante_${codigoSalaActual}_${estudianteId}`,
+        JSON.stringify(estudianteData)
     );
     difundirCambioPersistencia('tienda-sync', { codigo: codigoSalaActual });
     void sincronizarEstadoConServidor();
@@ -609,7 +617,7 @@ function renderizarEstudiantesEnDocente(estudiantes) {
     lista.innerHTML = estudiantes.map(e => `
         <li class="student-pill">
             <span>🎈 ${escapeHtml(e.nombre)}</span>
-            <button class="student-remove" data-nombre="${escapeHtml(e.nombre)}" title="Eliminar estudiante">✕</button>
+            <button class="student-remove" data-id="${escapeHtml(e.id || e.nombre)}" title="Eliminar estudiante">✕</button>
         </li>
     `).join('');
 }
@@ -618,10 +626,10 @@ function manejarClickEliminarEstudiante(event) {
     const boton = event.target.closest('.student-remove');
     if (!boton) return;
 
-    const nombre = boton.dataset.nombre;
-    if (!nombre) return;
+    const estudianteId = boton.dataset.id;
+    if (!estudianteId) return;
 
-    eliminarEstudianteDocente(nombre);
+    eliminarEstudianteDocente(estudianteId);
 }
 
 function actualizarContadorEstudiante(estudiantes) {
@@ -675,8 +683,8 @@ function eliminarTodosEstudiantesSala(codigo) {
     keysAEliminar.forEach(({ storage, clave }) => storage.removeItem(clave));
 }
 
-function eliminarEstudianteDocente(nombre) {
-    if (!codigoSalaActual || !nombre) {
+function eliminarEstudianteDocente(identificador) {
+    if (!codigoSalaActual || !identificador) {
         mostrarNotificacion('No se pudo eliminar el estudiante.', 'warning');
         return;
     }
@@ -695,7 +703,10 @@ function eliminarEstudianteDocente(nombre) {
                     const valor = storage.getItem(clave);
                     if (!valor) continue;
                     const estudiante = JSON.parse(valor);
-                    if (estudiante && estudiante.nombre === nombre) {
+                    if (estudiante && (
+                        (estudiante.id && estudiante.id === identificador) ||
+                        (!estudiante.id && estudiante.nombre === identificador)
+                    )) {
                         clavesAEliminar.push(clave);
                     }
                 } catch (e) {
@@ -715,7 +726,10 @@ function eliminarEstudianteDocente(nombre) {
     const salaRaw = leerDatoPersistente(`sala_${codigoSalaActual}`);
     let sala = salaRaw ? JSON.parse(salaRaw) : null;
     const estudiantesSala = Array.isArray(sala?.estudiantes) ? sala.estudiantes : [];
-    const estudiantesActualizados = estudiantesSala.filter(est => est.nombre !== nombre);
+    const estudiantesActualizados = estudiantesSala.filter(est => {
+        if (est.id) return est.id !== identificador;
+        return est.nombre !== identificador;
+    });
     const eliminadoEnSala = estudiantesActualizados.length < estudiantesSala.length;
 
     if (eliminadoEnSala) {
@@ -730,11 +744,11 @@ function eliminarEstudianteDocente(nombre) {
     }
 
     if (!eliminadoLocal && !eliminadoEnSala) {
-        mostrarNotificacion(`No se encontró al estudiante ${nombre} en la sala.`, 'warning');
+        mostrarNotificacion('No se encontró al estudiante en la sala.', 'warning');
         return;
     }
 
-    mostrarNotificacion(`Estudiante ${nombre} eliminado.`, 'success');
+    mostrarNotificacion('Estudiante eliminado.', 'success');
 
     renderizarEstudiantesEnDocente(estudiantesActualizados);
     if (miRol === 'docente' && document.getElementById('pantalla-control-docente').classList.contains('active')) {
@@ -896,7 +910,9 @@ async function unirseASalaEstudiante() {
     seccionEstudiante = seccion;
     productosConPrecios = sala.precios;
 
+    miEstudianteId = generarIdEstudiante();
     const miPerfil = {
+        id: miEstudianteId,
         nombre: nombreEstudiante,
         grado: gradoEstudiante,
         seccion: seccionEstudiante,
@@ -1046,7 +1062,7 @@ function actualizarPanelSeguimientoDocente(estudiantes) {
             <td>${est.tiempo}s</td>
             <td style="color:var(--red-kid);">${est.errores}</td>
             <td><span class="counter-badge" style="background-color: var(--green-kid);">${est.ordenLlegada ? 'Terminado' : 'Jugando'}</span></td>
-            <td><button class="btn btn-red btn-sm" onclick="eliminarEstudianteDocente(${JSON.stringify(est.nombre)})">Eliminar</button></td>
+            <td><button class="btn btn-red btn-sm" onclick="eliminarEstudianteDocente(${JSON.stringify(est.id || est.nombre)})">Eliminar</button></td>
         `;
         tbody.appendChild(tr);
     });
@@ -1590,7 +1606,10 @@ function desconectarYSalir() {
 
     if (miRol === 'estudiante' && nombreEstudiante) {
         // Marcarnos como desconectados
-        eliminarDatoPersistente(`estudiante_${codigoSalaActual}_${nombreEstudiante}`);
+        const claveEstudiante = miEstudianteId
+            ? `estudiante_${codigoSalaActual}_${miEstudianteId}`
+            : `estudiante_${codigoSalaActual}_${nombreEstudiante}`;
+        eliminarDatoPersistente(claveEstudiante);
     }
 
     miRol = null;
