@@ -198,11 +198,7 @@ function mostrarPantalla(screenId) {
         refrescarSalaServidor();
     }
 
-    if (screenId === 'pantalla-resultados') {
-        iniciarFondoResultados();
-    } else {
-        detenerFondoResultados();
-    }
+    detenerFondoResultados();
 }
 
 function inicializarFondoResultados() {
