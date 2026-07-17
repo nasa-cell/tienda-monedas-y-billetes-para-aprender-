@@ -117,12 +117,23 @@ function eliminarDatoPersistente(clave) {
     try {
         localStorage.removeItem(clave);
     } catch (error) {
-        try {
-            sessionStorage.removeItem(clave);
-        } catch (fallbackError) {
-            console.warn('No se pudo eliminar la sesión local:', fallbackError);
-        }
+        console.warn('No se pudo eliminar en localStorage:', error);
     }
+
+    try {
+        sessionStorage.removeItem(clave);
+    } catch (error) {
+        console.warn('No se pudo eliminar en sessionStorage:', error);
+    }
+}
+
+function escapeHtml(text) {
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 function difundirCambioPersistencia(tipo, payload) {
@@ -157,7 +168,7 @@ function inicializarPersistenciaReactiva() {
     }
 
     window.addEventListener('storage', (event) => {
-        if (event.key && event.key.startsWith('sala_') && codigoSalaActual) {
+        if (event.key && (event.key.startsWith('sala_') || event.key.startsWith('estudiante_')) && codigoSalaActual) {
             if (typeof activarSincronizacionReactiva === 'function') {
                 activarSincronizacionReactiva();
             }
@@ -592,7 +603,7 @@ function renderizarEstudiantesEnDocente(estudiantes) {
     contador.innerText = `${estudiantes.length} estudiante${estudiantes.length === 1 ? '' : 's'}`;
     lista.innerHTML = estudiantes.map(e => `
         <li class="student-pill">
-            <span>🎈 ${e.nombre}</span>
+            <span>🎈 ${escapeHtml(e.nombre)}</span>
             <button class="student-remove" onclick="eliminarEstudianteDocente(${JSON.stringify(e.nombre)})" title="Eliminar estudiante">✕</button>
         </li>
     `).join('');
@@ -655,14 +666,64 @@ function eliminarEstudianteDocente(nombre) {
         return;
     }
 
-    const clave = `estudiante_${codigoSalaActual}_${nombre}`;
-    eliminarDatoPersistente(clave);
+    const clavePrefijo = `estudiante_${codigoSalaActual}_`;
+    let eliminadoLocal = false;
+
+    [localStorage, sessionStorage].forEach(storage => {
+        try {
+            const clavesAEliminar = [];
+            for (let i = 0; i < storage.length; i++) {
+                const clave = storage.key(i);
+                if (!clave || !clave.startsWith(clavePrefijo)) continue;
+
+                try {
+                    const valor = storage.getItem(clave);
+                    if (!valor) continue;
+                    const estudiante = JSON.parse(valor);
+                    if (estudiante && estudiante.nombre === nombre) {
+                        clavesAEliminar.push(clave);
+                    }
+                } catch (e) {
+                    // ignorar valores no JSON
+                }
+            }
+
+            clavesAEliminar.forEach(clave => {
+                storage.removeItem(clave);
+                eliminadoLocal = true;
+            });
+        } catch (e) {
+            // ignorar errores de almacenamiento
+        }
+    });
+
+    const salaRaw = leerDatoPersistente(`sala_${codigoSalaActual}`);
+    let sala = salaRaw ? JSON.parse(salaRaw) : null;
+    const estudiantesSala = Array.isArray(sala?.estudiantes) ? sala.estudiantes : [];
+    const estudiantesActualizados = estudiantesSala.filter(est => est.nombre !== nombre);
+    const eliminadoEnSala = estudiantesActualizados.length < estudiantesSala.length;
+
+    if (eliminadoEnSala) {
+        const salaActualizada = {
+            codigo: codigoSalaActual,
+            estado: sala?.estado || 'espera',
+            precios: sala?.precios || productosConPrecios,
+            estudiantes: estudiantesActualizados
+        };
+        guardarDatoPersistente(`sala_${codigoSalaActual}`, JSON.stringify(salaActualizada));
+        sala = salaActualizada;
+    }
+
+    if (!eliminadoLocal && !eliminadoEnSala) {
+        mostrarNotificacion(`No se encontró al estudiante ${nombre} en la sala.`, 'warning');
+        return;
+    }
+
     mostrarNotificacion(`Estudiante ${nombre} eliminado.`, 'success');
 
-    const estudiantes = obtenerEstudiantesDeSala(codigoSalaActual);
-    renderizarEstudiantesEnDocente(estudiantes);
+    renderizarEstudiantesEnDocente(estudiantesActualizados);
     if (miRol === 'docente' && document.getElementById('pantalla-control-docente').classList.contains('active')) {
-        actualizarPanelSeguimientoDocente(estudiantes);
+        actualizarPanelSeguimientoDocente(estudiantesActualizados);
     }
 
     difundirCambioPersistencia('tienda-sync', { codigo: codigoSalaActual });
