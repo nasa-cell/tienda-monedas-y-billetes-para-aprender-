@@ -21,7 +21,6 @@ let tiempoTotalJugado = 0;
 let temporizadorReto = null;
 let temporizadorTotal = null;
 
-let montoColocadoPago = 0; // Dinero acumulado por monedas/billetes ingresados
 let retoActivo = null; // Información de la pregunta actual
 let carrito = []; // Items seleccionados
 let totalAciertos = 0;
@@ -1271,8 +1270,7 @@ function crearNuevoReto() {
     document.getElementById('hud-puntos').innerText = puntajeActual;
     document.getElementById('hud-nivel').innerText = nivelActual;
     document.getElementById('hud-ronda').innerText = `${rondaActual}/${totalRondasObjetivo}`;
-    document.getElementById('monto-pagado').innerText = 'S/ 0.00';
-    montoColocadoPago = 0;
+    actualizarSeleccionado();
 
     actualizarBarraTiempo();
     if (temporizadorReto) clearInterval(temporizadorReto);
@@ -1323,11 +1321,11 @@ function generarRetoMatematico(nivel, problemaIndex = 1) {
     const tiempoAsignado = Math.max(30, tiempoBase - Math.floor((rondaActual - 1) / 8));
 
     return {
-        descripcion: `Problema ${problemaIndex}: compra ${producto.emoji} ${producto.nombre} y paga S/ ${precioMeta.toFixed(2)} exactos. Usa las monedas y billetes del cajero.`,
+        descripcion: `Problema ${problemaIndex}: compra ${producto.emoji} ${producto.nombre}.`,
         tiempo: tiempoAsignado,
-        evaluar: (car, total) => {
+        evaluar: (car) => {
             const tieneProducto = car.some(i => i.id === producto.id && i.cant >= 1);
-            return { ok: tieneProducto && total === precioMeta, msg: `El total correcto era S/ ${precioMeta.toFixed(2)}.` };
+            return { ok: tieneProducto, msg: `Debes elegir el producto ${producto.emoji} ${producto.nombre}.` };
         }
     };
 }
@@ -1341,14 +1339,9 @@ function generarRetoMatematico(nivel, problemaIndex = 1) {
 function agregarAlCarrito(id) {
     sonarEfecto('click');
     const prod = productosConPrecios.find(p => p.id === id);
-    const yaExiste = carrito.find(item => item.id === id);
-
-    if (yaExiste) {
-        yaExiste.cant++;
-    } else {
-        carrito.push({ ...prod, cant: 1 });
-    }
+    carrito = prod ? [{ ...prod, cant: 1 }] : [];
     renderizarCarrito();
+    actualizarSeleccionado();
 }
 
 function eliminarDelCarrito(id) {
@@ -1359,9 +1352,8 @@ function eliminarDelCarrito(id) {
 
 function vaciarCarrito() {
     carrito = [];
-    montoColocadoPago = 0;
     renderizarCarrito();
-    document.getElementById('monto-pagado').innerText = "S/ 0.00";
+    actualizarSeleccionado();
 }
 
 function renderizarCarrito() {
@@ -1371,43 +1363,37 @@ function renderizarCarrito() {
     if (carrito.length === 0) {
         listDOM.innerHTML = `<p class="empty-cart-msg">El carrito está vacío</p>`;
         actualizarTotalesCarrito(0);
+        actualizarSeleccionado();
         return;
     }
 
-    let subtotal = 0;
-    carrito.forEach(item => {
-        const itemTotal = item.precio * item.cant;
-        subtotal += itemTotal;
+    const item = carrito[0];
+    const itemTotal = item.precio * item.cant;
+    const row = document.createElement('div');
+    row.className = "cart-item";
+    row.innerHTML = `
+        <span>${item.emoji} ${item.nombre}</span>
+        <div>
+            <span>S/ ${itemTotal.toFixed(2)}</span>
+            <button class="btn btn-red btn-sm" onclick="eliminarDelCarrito(${item.id})" style="margin-left:8px; padding:3px 6px;">X</button>
+        </div>
+    `;
+    listDOM.appendChild(row);
 
-        const row = document.createElement('div');
-        row.className = "cart-item";
-        row.innerHTML = `
-            <span>${item.emoji} ${item.nombre} x${item.cant}</span>
-            <div>
-                <span>S/ ${itemTotal.toFixed(2)}</span>
-                <button class="btn btn-red btn-sm" onclick="eliminarDelCarrito(${item.id})" style="margin-left:8px; padding:3px 6px;">X</button>
-            </div>
-        `;
-        listDOM.appendChild(row);
-    });
-
-    actualizarTotalesCarrito(subtotal);
+    actualizarTotalesCarrito(itemTotal);
+    actualizarSeleccionado();
 }
 
 function actualizarTotalesCarrito(subtotal) {
     let descuento = 0;
     
     // Si estamos en nivel de descuentos, aplicamos la regla visual
-    if (nivelActual === 5 && carrito.length > 0) {
-        // En nivel 5 evaluamos la manzana (primer elemento con descuento si está)
-        const itemBuscado = carrito[0];
-        descuento = (itemBuscado.precio * itemBuscado.cant) * 0.20; 
-    }
+
 
     const total = Math.max(0, subtotal - descuento);
 
     document.getElementById('cart-subtotal').innerText = `S/ ${subtotal.toFixed(2)}`;
-    document.getElementById('cart-descuento').innerText = `S/ ${descuento.toFixed(2)}`;
+    document.getElementById('cart-descuento').innerText = `S/ 0.00`;
     document.getElementById('cart-total').innerText = `S/ ${total.toFixed(2)}`;
 }
 
@@ -1417,28 +1403,23 @@ function actualizarTotalesCarrito(subtotal) {
  * SISTEMA DE CAJA REGISTRADORA VIRTUAL
  * ==========================================
  */
-function agregarDineroPago(monto) {
-    sonarEfecto('click');
-    montoColocadoPago += monto;
-    document.getElementById('monto-pagado').innerText = `S/ ${montoColocadoPago.toFixed(2)}`;
-}
-
-function resetearPago() {
-    montoColocadoPago = 0;
-    document.getElementById('monto-pagado').innerText = 'S/ 0.00';
-    mostrarNotificacion('Puedes volver a ingresar monedas y billetes.', 'info');
+function actualizarSeleccionado() {
+    const actual = carrito[0];
+    const campo = document.getElementById('cart-selected-item');
+    if (campo) {
+        campo.innerText = actual ? `${actual.emoji} ${actual.nombre}` : 'Ninguno';
+    }
 }
 
 function procesarPagoReto() {
     if (!retoActivo) return;
 
-    // Evaluamos el carrito comprado y el pago
-    const resultado = retoActivo.evaluar(carrito, montoColocadoPago);
+    const resultado = retoActivo.evaluar(carrito);
 
     if (resultado.ok) {
         totalAciertos++;
         sonarEfecto('correcto');
-        mostrarNotificacion('¡Excelente compra! El cajero validó tu pago con éxito.', 'success');
+        mostrarNotificacion('¡Excelente! Has elegido el producto correcto.', 'success');
         puntajeActual += 15;
         
         // Subir de nivel de forma lógica cada 30 puntos
@@ -1455,11 +1436,7 @@ function procesarPagoReto() {
     } else {
         sonarEfecto('error');
         totalErrores++;
-        mostrarNotificacion(`Monto incorrecto. ${resultado.msg}. ¡Sigue intentando!`, 'error');
-        
-        // Reset del pago para permitir corregir
-        montoColocadoPago = 0;
-        document.getElementById('monto-pagado').innerText = "S/ 0.00";
+        mostrarNotificacion(`No es el producto correcto. ${resultado.msg}`, 'error');
 
         // Registrar error en "base de datos"
         actualizarEstudianteEnLobby({
@@ -1484,6 +1461,23 @@ function procesarPagoReto() {
  */
 function procesarYMostrarResultados() {
     mostrarPantalla('pantalla-resultados');
+
+    const studentMessage = document.getElementById('student-finish-message');
+    const teacherSummary = document.getElementById('teacher-finish-summary');
+    const podium = document.getElementById('podium');
+    const tablaContainer = document.getElementById('tabla-resultados-container');
+
+    if (miRol === 'docente') {
+        studentMessage.style.display = 'none';
+        teacherSummary.style.display = '';
+        podium.style.display = '';
+        tablaContainer.style.display = '';
+    } else {
+        studentMessage.style.display = '';
+        teacherSummary.style.display = 'none';
+        podium.style.display = 'none';
+        tablaContainer.style.display = 'none';
+    }
 
     const estudiantes = obtenerEstudiantesDeSala(codigoSalaActual);
     
