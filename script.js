@@ -1533,13 +1533,10 @@ function obtenerTotalCarrito() {
 function actualizarPagoTerminal(total) {
     const totalDue = document.getElementById('payment-total-due');
     const inserted = document.getElementById('payment-amount-inserted');
-    const change = document.getElementById('payment-change');
     const button = document.getElementById('btn-confirmar-pago');
-    const changeAmount = montoColocadoPago > total && total > 0 ? 0 : Math.max(0, montoColocadoPago - total);
 
     if (totalDue) totalDue.innerText = `S/ ${total.toFixed(2)}`;
     if (inserted) inserted.innerText = `S/ ${montoColocadoPago.toFixed(2)}`;
-    if (change) change.innerText = `S/ ${changeAmount.toFixed(2)}`;
     if (button) button.disabled = total <= 0;
 }
 
