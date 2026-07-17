@@ -485,7 +485,6 @@ async function sincronizarEstadoConServidor() {
         codigo: codigoSalaActual,
         estado: salaLocal?.estado || 'espera',
         precios: salaLocal?.precios || productosConPrecios,
-        reinicioId: salaLocal?.reinicioId || null,
         estudiantes: estudiantes.map(estudiante => ({
             nombre: estudiante.nombre,
             grado: estudiante.grado,
@@ -508,8 +507,7 @@ async function sincronizarEstadoConServidor() {
                 room: {
                     codigo: codigoSalaActual,
                     estado: salaLocal?.estado || 'espera',
-                    precios: salaLocal?.precios || productosConPrecios,
-                    reinicioId: salaLocal?.reinicioId || null
+                    precios: salaLocal?.precios || productosConPrecios
                 },
                 students: estudiantes.map(estudiante => ({
                     nombre: estudiante.nombre,
@@ -646,60 +644,24 @@ function eliminarTodosEstudiantesSala(codigo) {
     keysAEliminar.forEach(({ storage, clave }) => storage.removeItem(clave));
 }
 
-async function reiniciarSalaDocente() {
-    if (!codigoSalaActual) {
-        mostrarNotificacion('No hay sala activa para reiniciar.', 'warning');
+function eliminarEstudianteDocente(nombre) {
+    if (!codigoSalaActual || !nombre) {
+        mostrarNotificacion('No se pudo eliminar el estudiante.', 'warning');
         return;
     }
 
-    if (!confirm('¿Deseas borrar a los estudiantes anteriores y dejar la sala lista para nuevos usuarios?')) {
-        return;
+    const clave = `estudiante_${codigoSalaActual}_${nombre}`;
+    eliminarDatoPersistente(clave);
+    mostrarNotificacion(`Estudiante ${nombre} eliminado.`, 'success');
+
+    const estudiantes = obtenerEstudiantesDeSala(codigoSalaActual);
+    renderizarEstudiantesEnDocente(estudiantes);
+    if (miRol === 'docente' && document.getElementById('pantalla-control-docente').classList.contains('active')) {
+        actualizarPanelSeguimientoDocente(estudiantes);
     }
 
-    eliminarTodosEstudiantesSala(codigoSalaActual);
-    const estudiantesRestantes = obtenerEstudiantesDeSala(codigoSalaActual);
-    if (estudiantesRestantes.length > 0) {
-        estudiantesRestantes.forEach(est => eliminarDatoPersistente(`estudiante_${codigoSalaActual}_${est.nombre}`));
-    }
-
-    const salaRaw = leerDatoPersistente(`sala_${codigoSalaActual}`);
-    const sala = salaRaw ? JSON.parse(salaRaw) : { codigo: codigoSalaActual, estado: 'espera', precios: productosConPrecios, estudiantes: [] };
-    sala.estado = 'espera';
-    sala.estudiantes = [];
-    sala.reinicioId = Date.now();
-    guardarDatoPersistente(`sala_${codigoSalaActual}`, JSON.stringify(sala));
-
-    renderizarEstudiantesEnDocente([]);
-    actualizarPanelSeguimientoDocente([]);
-    document.getElementById('lobby-codigo-docente').innerText = codigoSalaActual;
-    mostrarNotificacion('Aula reiniciada. Ya puedes recibir nuevos estudiantes.', 'success');
-
-    difundirCambioPersistencia('tienda-sync', { codigo: codigoSalaActual, reinicioId: sala.reinicioId });
-    await sincronizarEstadoConServidor();
-    await refrescarSalaServidor();
-    mostrarPantalla('pantalla-espera-docente');
-}
-
-function limpiarSesionEstudiantePorReinicio() {
-    const estudianteClaves = [];
-    const fuentes = [localStorage, sessionStorage];
-
-    fuentes.forEach(storage => {
-        try {
-            for (let i = 0; i < storage.length; i++) {
-                const clave = storage.key(i);
-                if (clave && clave.startsWith(`estudiante_${codigoSalaActual}_`)) {
-                    estudianteClaves.push({ storage, clave });
-                }
-            }
-        } catch (e) {}
-    });
-
-    estudianteClaves.forEach(({ storage, clave }) => storage.removeItem(clave));
-    localStorage.removeItem(`sala_${codigoSalaActual}`);
-    sessionStorage.removeItem(`sala_${codigoSalaActual}`);
-    mostrarNotificacion('Tu sesión de estudiante se ha reiniciado. Vuelve a entrar con el código.', 'warning');
-    mostrarPantalla('pantalla-acceso-estudiante');
+    difundirCambioPersistencia('tienda-sync', { codigo: codigoSalaActual });
+    void sincronizarEstadoConServidor();
 }
 
 
@@ -841,10 +803,6 @@ async function unirseASalaEstudiante() {
     }
 
     const sala = JSON.parse(salaRaw);
-    if (sala.reinicioId) {
-        localStorage.setItem(`sala_reinicio_${codigo}`, String(sala.reinicioId));
-    }
-
     if (sala.estado !== 'espera') {
         mostrarNotificacion('El juego ya comenzó o ya fue terminado.', 'warning');
         return;
@@ -917,20 +875,6 @@ function activarSincronizacionReactiva() {
         if (!salaRaw) return;
 
         const sala = salaRemota || JSON.parse(salaRaw);
-        const studentInRoom = miRol === 'estudiante' && (
-            document.getElementById('pantalla-espera-estudiante')?.classList.contains('active') ||
-            document.getElementById('pantalla-juego')?.classList.contains('active')
-        );
-
-        if (studentInRoom && sala?.reinicioId) {
-            const ultimaReinicio = Number(localStorage.getItem(`sala_reinicio_${codigoSalaActual}`) || '0');
-            if (sala.reinicioId > ultimaReinicio) {
-                localStorage.setItem(`sala_reinicio_${codigoSalaActual}`, String(sala.reinicioId));
-                limpiarSesionEstudiantePorReinicio();
-                return;
-            }
-        }
-
         const estudiantes = Array.isArray(sala?.estudiantes) && sala.estudiantes.length > 0
             ? sala.estudiantes
             : obtenerEstudiantesDeSala(codigoSalaActual);
@@ -990,8 +934,7 @@ function actualizarPanelSeguimientoDocente(estudiantes) {
     tbody.innerHTML = '';
 
     if (estudiantes.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="text-center">Esperando a que entren los alumnos...</td></tr>`;
-        return;
+        tbody.innerHTML = `<tr><td colspan="10" class="text-center">Esperando a que entren los alumnos...</td></tr>`;
     }
 
     let sumaPuntajes = 0;
@@ -1022,6 +965,7 @@ function actualizarPanelSeguimientoDocente(estudiantes) {
             <td>${est.tiempo}s</td>
             <td style="color:var(--red-kid);">${est.errores}</td>
             <td><span class="counter-badge" style="background-color: var(--green-kid);">${est.ordenLlegada ? 'Terminado' : 'Jugando'}</span></td>
+            <td><button class="btn btn-red btn-sm" onclick="eliminarEstudianteDocente(${JSON.stringify(est.nombre)})">Eliminar</button></td>
         `;
         tbody.appendChild(tr);
     });
