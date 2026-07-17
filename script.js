@@ -1535,10 +1535,11 @@ function actualizarPagoTerminal(total) {
     const inserted = document.getElementById('payment-amount-inserted');
     const change = document.getElementById('payment-change');
     const button = document.getElementById('btn-confirmar-pago');
+    const changeAmount = montoColocadoPago > total && total > 0 ? 0 : Math.max(0, montoColocadoPago - total);
 
     if (totalDue) totalDue.innerText = `S/ ${total.toFixed(2)}`;
     if (inserted) inserted.innerText = `S/ ${montoColocadoPago.toFixed(2)}`;
-    if (change) change.innerText = `S/ ${Math.max(0, montoColocadoPago - total).toFixed(2)}`;
+    if (change) change.innerText = `S/ ${changeAmount.toFixed(2)}`;
     if (button) button.disabled = total <= 0;
 }
 
@@ -1588,8 +1589,13 @@ function procesarPagoReto() {
 
     if (resultado.ok) {
         totalAciertos++;
-        sonarEfecto('correcto');
-        mostrarNotificacion('¡Excelente compra! El cajero validó tu pago con éxito.', 'success');
+        if (montoColocadoPago > total) {
+            puntajeActual = Math.max(0, puntajeActual - 1);
+            mostrarNotificacion('Pagaste de más: no hay cambio y pierdes 1 punto.', 'warning');
+        } else {
+            sonarEfecto('correcto');
+            mostrarNotificacion('¡Excelente compra! El cajero validó tu pago con éxito.', 'success');
+        }
         puntajeActual += 15;
         
         // Subir de nivel de forma lógica cada 30 puntos
