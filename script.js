@@ -590,6 +590,7 @@ function actualizarEstudianteEnLobby(estudianteObj) {
 
 function obtenerEstudiantesDeSala(codigo) {
     const estudiantes = [];
+    const vistos = new Set();
     const fuentes = [localStorage, sessionStorage];
 
     fuentes.forEach(storage => {
@@ -598,7 +599,15 @@ function obtenerEstudiantesDeSala(codigo) {
                 const clave = storage.key(i);
                 if (clave && clave.startsWith(`estudiante_${codigo}_`)) {
                     try {
-                        estudiantes.push(JSON.parse(storage.getItem(clave)));
+                        const estudiante = JSON.parse(storage.getItem(clave));
+                        if (!estudiante || typeof estudiante !== 'object') continue;
+
+                        const claveUnica = estudiante.id
+                            ? `id:${estudiante.id}`
+                            : `${estudiante.nombre}|${estudiante.grado}|${estudiante.seccion}`;
+                        if (vistos.has(claveUnica)) continue;
+                        vistos.add(claveUnica);
+                        estudiantes.push(estudiante);
                     } catch (e) {}
                 }
             }
@@ -876,9 +885,11 @@ function crearSalaJuego() {
         precios: productosConPrecios
     };
 
+    // Eliminar estudiantes anteriores registrados antes de crear la nueva sala
+    eliminarTodosEstudiantesSala(codigoSalaActual);
+
     // Almacenar sala
     guardarDatoPersistente(`sala_${codigoSalaActual}`, JSON.stringify(datosSala));
-    eliminarTodosEstudiantesSala(codigoSalaActual);
     inicializarPersistenciaReactiva();
     difundirCambioPersistencia('tienda-sync', { codigo: codigoSalaActual });
 
@@ -977,17 +988,24 @@ async function unirseASalaEstudiante() {
     seccionEstudiante = seccion;
     productosConPrecios = sala.precios;
 
-    miEstudianteId = generarIdEstudiante();
+    const estudiantesExistentes = obtenerEstudiantesDeSala(codigo);
+    const estudianteDuplicado = estudiantesExistentes.find(est =>
+        est.nombre === nombreEstudiante &&
+        est.grado === gradoEstudiante &&
+        est.seccion === seccionEstudiante
+    );
+
+    miEstudianteId = estudianteDuplicado?.id || generarIdEstudiante();
     const miPerfil = {
         id: miEstudianteId,
         nombre: nombreEstudiante,
         grado: gradoEstudiante,
         seccion: seccionEstudiante,
-        score: 0,
-        nivel: 1,
-        ronda: 0,
-        errores: 0,
-        tiempo: 0,
+        score: estudianteDuplicado?.score || 0,
+        nivel: estudianteDuplicado?.nivel || 1,
+        ronda: estudianteDuplicado?.ronda || 0,
+        errores: estudianteDuplicado?.errores || 0,
+        tiempo: estudianteDuplicado?.tiempo || 0,
         activo: true
     };
 
@@ -1340,7 +1358,19 @@ function generarRetoMatematico(nivel, problemaIndex = 1) {
 function agregarAlCarrito(id) {
     sonarEfecto('click');
     const prod = productosConPrecios.find(p => p.id === id);
-    carrito = prod ? [{ ...prod, cant: 1 }] : [];
+    if (!prod) return;
+
+    const existente = carrito.find(item => item.id === id);
+    if (existente) {
+        existente.cant += 1;
+    } else {
+        if (carrito.length >= 3) {
+            mostrarNotificacion('Puedes elegir hasta 3 productos en el carrito.', 'warning');
+            return;
+        }
+        carrito.push({ ...prod, cant: 1 });
+    }
+
     renderizarCarrito();
     actualizarSeleccionado();
 }
@@ -1370,21 +1400,25 @@ function renderizarCarrito() {
         return;
     }
 
-    const item = carrito[0];
-    const itemTotal = item.precio * item.cant;
-    const row = document.createElement('div');
-    row.className = "cart-item";
-    row.innerHTML = `
-        <span>${item.emoji} ${item.nombre}</span>
-        <div>
-            <span>S/ ${itemTotal.toFixed(2)}</span>
-            <button class="btn btn-red btn-sm" onclick="eliminarDelCarrito(${item.id})" style="margin-left:8px; padding:3px 6px;">X</button>
-        </div>
-    `;
-    listDOM.appendChild(row);
+    let subtotal = 0;
+    carrito.forEach(item => {
+        const itemTotal = item.precio * item.cant;
+        subtotal += itemTotal;
 
-    actualizarTotalesCarrito(itemTotal);
-    actualizarPagoTerminal(itemTotal);
+        const row = document.createElement('div');
+        row.className = "cart-item";
+        row.innerHTML = `
+            <span>${item.emoji} ${item.nombre} ${item.cant > 1 ? `x${item.cant}` : ''}</span>
+            <div>
+                <span>S/ ${itemTotal.toFixed(2)}</span>
+                <button class="btn btn-red btn-sm" onclick="eliminarDelCarrito(${item.id})" style="margin-left:8px; padding:3px 6px;">X</button>
+            </div>
+        `;
+        listDOM.appendChild(row);
+    });
+
+    actualizarTotalesCarrito(subtotal);
+    actualizarPagoTerminal(subtotal);
     actualizarSeleccionado();
 }
 
@@ -1435,11 +1469,16 @@ function resetPago() {
  * ==========================================
  */
 function actualizarSeleccionado() {
-    const actual = carrito[0];
     const campo = document.getElementById('cart-selected-item');
-    if (campo) {
-        campo.innerText = actual ? `${actual.emoji} ${actual.nombre}` : 'Ninguno';
+    if (!campo) return;
+
+    if (carrito.length === 0) {
+        campo.innerText = 'Ninguno';
+        return;
     }
+
+    const nombres = carrito.map(item => `${item.emoji} ${item.nombre}${item.cant > 1 ? ` x${item.cant}` : ''}`);
+    campo.innerText = nombres.join(', ');
 }
 
 function procesarPagoReto() {
@@ -1500,61 +1539,76 @@ function procesarYMostrarResultados() {
     mostrarPantalla('pantalla-resultados');
 
     const estudiantes = obtenerEstudiantesDeSala(codigoSalaActual);
-    
-    document.getElementById('final-aciertos').innerText = totalAciertos;
-    document.getElementById('final-errores').innerText = totalErrores;
-    document.getElementById('final-puntos').innerText = `${puntajeActual} pts`;
-    
-    // Ordenar de mayor a menor puntaje para el podio
-    estudiantes.sort((a, b) => b.score - a.score);
-
-    // Renderizar Podio de Ganadores
-    document.getElementById('podio-nombre-1').innerText = estudiantes[0] ? estudiantes[0].nombre : 'Vacante';
-    document.getElementById('podio-score-1').innerText = estudiantes[0] ? `${estudiantes[0].score} pts` : '0 pts';
-
-    document.getElementById('podio-nombre-2').innerText = estudiantes[1] ? estudiantes[1].nombre : 'Vacante';
-    document.getElementById('podio-score-2').innerText = estudiantes[1] ? `${estudiantes[1].score} pts` : '0 pts';
-
-    document.getElementById('podio-nombre-3').innerText = estudiantes[2] ? estudiantes[2].nombre : 'Vacante';
-    document.getElementById('podio-score-3').innerText = estudiantes[2] ? `${estudiantes[2].score} pts` : '0 pts';
-
-    // Rellenar tabla final
-    const tbody = document.getElementById('cuerpo-tabla-finales');
-    tbody.innerHTML = '';
-
-    if (estudiantes.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center">No hubo participantes registrados en la partida.</td></tr>`;
-    } else {
-        estudiantes.forEach((est, index) => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><strong>#${index + 1}</strong></td>
-                <td>👦👧 ${est.nombre}</td>
-                <td>${est.grado} "${est.seccion}"</td>
-                <td><span class="total-highlight">${est.score} pts</span></td>
-                <td>Nivel ${est.nivel}</td>
-                <td>${est.errores} fallos</td>
-                <td>${est.tiempo} segundos</td>
-            `;
-            tbody.appendChild(tr);
-        });
-    }
-
-    // Configurar Botones Dinámicos al final
+    const studentMessage = document.getElementById('student-finish-message');
+    const teacherSummary = document.getElementById('teacher-finish-summary');
+    const podium = document.getElementById('result-podium');
+    const tabla = document.getElementById('result-table');
     const actionsRow = document.getElementById('final-actions');
-    actionsRow.innerHTML = '';
 
     if (miRol === 'docente') {
+        studentMessage.style.display = 'none';
+        teacherSummary.style.display = '';
+        podium.style.display = '';
+        tabla.style.display = '';
+
+        const totalEstudiantes = estudiantes.length;
+        const totalErroresDocente = estudiantes.reduce((sum, est) => sum + (est.errores || 0), 0);
+        const totalPuntosDocente = estudiantes.reduce((sum, est) => sum + (est.score || 0), 0);
+        const promedioPuntos = totalEstudiantes ? Math.round(totalPuntosDocente / totalEstudiantes) : 0;
+
+        document.getElementById('final-aciertos-teacher').innerText = totalEstudiantes;
+        document.getElementById('final-errores-teacher').innerText = totalErroresDocente;
+        document.getElementById('final-puntos-teacher').innerText = `${promedioPuntos} pts`;
+
+        estudiantes.sort((a, b) => b.score - a.score);
+        document.getElementById('podio-nombre-1').innerText = estudiantes[0] ? estudiantes[0].nombre : 'Vacante';
+        document.getElementById('podio-score-1').innerText = estudiantes[0] ? `${estudiantes[0].score} pts` : '0 pts';
+        document.getElementById('podio-nombre-2').innerText = estudiantes[1] ? estudiantes[1].nombre : 'Vacante';
+        document.getElementById('podio-score-2').innerText = estudiantes[1] ? `${estudiantes[1].score} pts` : '0 pts';
+        document.getElementById('podio-nombre-3').innerText = estudiantes[2] ? estudiantes[2].nombre : 'Vacante';
+        document.getElementById('podio-score-3').innerText = estudiantes[2] ? `${estudiantes[2].score} pts` : '0 pts';
+
+        const tbody = document.getElementById('cuerpo-tabla-finales');
+        tbody.innerHTML = '';
+
+        if (estudiantes.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center">No hubo participantes registrados en la partida.</td></tr>`;
+        } else {
+            estudiantes.forEach((est, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>#${index + 1}</strong></td>
+                    <td>👦👧 ${est.nombre}</td>
+                    <td>${est.grado} "${est.seccion}"</td>
+                    <td><span class="total-highlight">${est.score} pts</span></td>
+                    <td>Nivel ${est.nivel}</td>
+                    <td>${est.errores} fallos</td>
+                    <td>${est.tiempo} segundos</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
         actionsRow.innerHTML = `
             <button class="btn btn-action" onclick="exportarResultadosCSV()">📥 Descargar Excel (.CSV)</button>
             <button class="btn btn-docente" onclick="irAlInicio()">🏠 Salir al Inicio</button>
         `;
-    } else {
-        actionsRow.innerHTML = `
-            <button class="btn btn-play" onclick="jugarDeNuevo()">🔄 Jugar de nuevo</button>
-            <button class="btn btn-estudiante" onclick="irAlInicio()">🏠 Volver al Inicio</button>
-        `;
+        return;
     }
+
+    studentMessage.style.display = '';
+    teacherSummary.style.display = 'none';
+    podium.style.display = 'none';
+    tabla.style.display = 'none';
+
+    document.getElementById('final-aciertos').innerText = totalAciertos;
+    document.getElementById('final-errores').innerText = totalErrores;
+    document.getElementById('final-puntos').innerText = `${puntajeActual} pts`;
+
+    actionsRow.innerHTML = `
+        <button class="btn btn-play" onclick="jugarDeNuevo()">🔄 Jugar de nuevo</button>
+        <button class="btn btn-estudiante" onclick="irAlInicio()">🏠 Volver al Inicio</button>
+    `;
 }
 
 function jugarDeNuevo() {
