@@ -915,11 +915,8 @@ function validarAccesoDocente() {
 }
 
 function generarCodigoSala() {
-    const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const numeros = '0123456789';
-    const parteLetra = Array.from({ length: 4 }, () => letras.charAt(Math.floor(Math.random() * letras.length))).join('');
-    const parteNumero = Array.from({ length: 4 }, () => numeros.charAt(Math.floor(Math.random() * numeros.length))).join('');
-    return `${parteLetra}${parteNumero}`;
+    const caracteres = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    return Array.from({ length: 4 }, () => caracteres.charAt(Math.floor(Math.random() * caracteres.length))).join('');
 }
 
 function crearSalaJuego() {
@@ -1010,6 +1007,11 @@ async function unirseASalaEstudiante() {
 
     if (!nombre || !grado || !seccion || !codigo) {
         mostrarNotificacion('Completa todos los datos antes de entrar a comprar.', 'warning');
+        return;
+    }
+
+    if (codigo.length !== 4) {
+        mostrarNotificacion('El código de sala debe tener exactamente 4 caracteres.', 'warning');
         return;
     }
 
