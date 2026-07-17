@@ -1191,7 +1191,6 @@ function actualizarPanelSeguimientoDocente(estudiantes) {
             <td>${est.tiempo}s</td>
             <td style="color:var(--red-kid);">${est.errores}</td>
             <td><span class="counter-badge" style="background-color: var(--green-kid);">${est.ordenLlegada ? 'Terminado' : 'Jugando'}</span></td>
-            <td><button class="btn btn-red btn-sm" onclick="eliminarEstudianteDocente(${JSON.stringify(est.id || est.nombre)})">Eliminar</button></td>
         `;
         tbody.appendChild(tr);
     });
