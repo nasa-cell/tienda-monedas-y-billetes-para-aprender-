@@ -23,6 +23,7 @@ let temporizadorTotal = null;
 
 let retoActivo = null; // Información de la pregunta actual
 let carrito = []; // Items seleccionados
+let montoColocadoPago = 0;
 let totalAciertos = 0;
 let channelSync = null;
 let servidorWiFi = '';
@@ -1362,7 +1363,9 @@ function renderizarCarrito() {
 
     if (carrito.length === 0) {
         listDOM.innerHTML = `<p class="empty-cart-msg">El carrito está vacío</p>`;
+        montoColocadoPago = 0;
         actualizarTotalesCarrito(0);
+        actualizarPagoTerminal(0);
         actualizarSeleccionado();
         return;
     }
@@ -1381,6 +1384,7 @@ function renderizarCarrito() {
     listDOM.appendChild(row);
 
     actualizarTotalesCarrito(itemTotal);
+    actualizarPagoTerminal(itemTotal);
     actualizarSeleccionado();
 }
 
@@ -1395,6 +1399,33 @@ function actualizarTotalesCarrito(subtotal) {
     document.getElementById('cart-subtotal').innerText = `S/ ${subtotal.toFixed(2)}`;
     document.getElementById('cart-descuento').innerText = `S/ 0.00`;
     document.getElementById('cart-total').innerText = `S/ ${total.toFixed(2)}`;
+    actualizarPagoTerminal(total);
+}
+
+function obtenerTotalCarrito() {
+    return carrito.reduce((suma, item) => suma + item.precio * item.cant, 0);
+}
+
+function actualizarPagoTerminal(total) {
+    const totalDue = document.getElementById('payment-total-due');
+    const inserted = document.getElementById('payment-amount-inserted');
+    const change = document.getElementById('payment-change');
+    const button = document.getElementById('btn-confirmar-pago');
+
+    if (totalDue) totalDue.innerText = `S/ ${total.toFixed(2)}`;
+    if (inserted) inserted.innerText = `S/ ${montoColocadoPago.toFixed(2)}`;
+    if (change) change.innerText = `S/ ${Math.max(0, montoColocadoPago - total).toFixed(2)}`;
+    if (button) button.disabled = total <= 0 || montoColocadoPago < total;
+}
+
+function agregarPago(valor) {
+    montoColocadoPago = parseFloat((montoColocadoPago + valor).toFixed(2));
+    actualizarPagoTerminal(obtenerTotalCarrito());
+}
+
+function resetPago() {
+    montoColocadoPago = 0;
+    actualizarPagoTerminal(obtenerTotalCarrito());
 }
 
 
@@ -1413,6 +1444,12 @@ function actualizarSeleccionado() {
 
 function procesarPagoReto() {
     if (!retoActivo) return;
+
+    const total = obtenerTotalCarrito();
+    if (montoColocadoPago < total) {
+        mostrarNotificacion('Debes pagar con monedas o billetes antes de confirmar.', 'warning');
+        return;
+    }
 
     const resultado = retoActivo.evaluar(carrito);
 
