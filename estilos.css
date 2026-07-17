@@ -818,6 +818,28 @@ input:focus, select:focus {
     min-width: 70px;
 }
 
+.payment-summary {
+    margin-top: 10px;
+    padding: 10px;
+    border: 2px dashed #2C3E50;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.9);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.payment-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+    align-items: center;
+}
+
+#btn-confirmar-pago:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .coin:hover, .bill:hover {
     transform: translateY(-2px);
     box-shadow: 0 5px 0px #2C3E50;
