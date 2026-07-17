@@ -351,6 +351,11 @@ window.addEventListener('DOMContentLoaded', () => {
     const btnIngresarEstudiante = document.getElementById('btn-ingresar-estudiante');
     if (btnIngresarEstudiante) btnIngresarEstudiante.addEventListener('click', unirseASalaEstudiante);
 
+    const listaDocente = document.getElementById('lobby-lista-docente');
+    if (listaDocente) {
+        listaDocente.addEventListener('click', manejarClickEliminarEstudiante);
+    }
+
     inicializarPersistenciaReactiva();
     inicializarMusicaFondo();
 });
@@ -604,9 +609,19 @@ function renderizarEstudiantesEnDocente(estudiantes) {
     lista.innerHTML = estudiantes.map(e => `
         <li class="student-pill">
             <span>🎈 ${escapeHtml(e.nombre)}</span>
-            <button class="student-remove" onclick="eliminarEstudianteDocente(${JSON.stringify(e.nombre)})" title="Eliminar estudiante">✕</button>
+            <button class="student-remove" data-nombre="${escapeHtml(e.nombre)}" title="Eliminar estudiante">✕</button>
         </li>
     `).join('');
+}
+
+function manejarClickEliminarEstudiante(event) {
+    const boton = event.target.closest('.student-remove');
+    if (!boton) return;
+
+    const nombre = boton.dataset.nombre;
+    if (!nombre) return;
+
+    eliminarEstudianteDocente(nombre);
 }
 
 function actualizarContadorEstudiante(estudiantes) {
